@@ -1,0 +1,4 @@
+interface:
+  display_name: "Comercial Pricing"
+  short_description: "Calculate QuoteFlow bid pricing"
+  default_prompt: "Use $comercial-pricing to calculate and persist QuoteFlow commercial pricing for this RFQ."

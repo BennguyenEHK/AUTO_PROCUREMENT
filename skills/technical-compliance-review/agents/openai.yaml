@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Compliance Review"
+  short_description: "Compare requirements to offered products"
+  default_prompt: "Use $technical-compliance-review to classify technical compliance and deviations for this offer."

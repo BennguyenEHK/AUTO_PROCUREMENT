@@ -1,0 +1,4 @@
+interface:
+  display_name: "Report Generator"
+  short_description: "Generate procurement HTML proposals"
+  default_prompt: "Use $report-generator to create supplier-search reports or native editable technical/commercial QuoteFlow proposal HTML files."

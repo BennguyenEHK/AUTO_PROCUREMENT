@@ -1,0 +1,4 @@
+interface:
+  display_name: "Suppliers Search"
+  short_description: "Find and verify supplier matches"
+  default_prompt: "Use $suppliers-search to source verified supplier and product matches for these RFQ items."

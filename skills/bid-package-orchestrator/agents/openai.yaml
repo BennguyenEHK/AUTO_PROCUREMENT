@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bid Package Orchestrator"
+  short_description: "Coordinate complete tender packages"
+  default_prompt: "Use $bid-package-orchestrator to coordinate a complete RFQ-to-submission bid package workflow."

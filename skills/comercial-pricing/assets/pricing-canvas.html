@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comercial Pricing Canvas</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d7dde7;
+      --accent: #0f766e;
+      --soft: #e7f3f1;
+      --warn: #9a3412;
+      --warn-soft: #fff4e6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 Arial, Helvetica, sans-serif; }
+    header { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 18px; }
+    h1 { margin: 0 0 8px; font-size: 21px; }
+    .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; padding: 8px 11px; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--accent); }
+    input, textarea { border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; font: inherit; }
+    input[type="number"] { width: 96px; }
+    main { padding: 18px; max-width: 1500px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 16px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+    textarea { width: 100%; min-height: 280px; font: 12px/1.4 Consolas, monospace; }
+    .bulk { display: grid; grid-template-columns: repeat(5, minmax(85px, 1fr)); gap: 8px; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; text-align: left; }
+    th { position: sticky; top: 79px; background: #f9fafb; z-index: 5; font-size: 12px; color: var(--muted); }
+    .num { text-align: right; white-space: nowrap; }
+    .desc { min-width: 260px; }
+    .badge { display: inline-block; background: var(--soft); color: var(--accent); border-radius: 999px; padding: 2px 7px; font-weight: 700; }
+    .warn { background: var(--warn-soft); color: var(--warn); padding: 8px 10px; border-radius: 6px; margin-top: 10px; }
+    .totals { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+    .total { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 180px; }
+    .total strong { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } th { position: static; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Comercial Pricing Canvas</h1>
+    <div class="bar">
+      <button id="loadBtn">Load JSON</button>
+      <button id="sampleBtn" class="secondary">Sample</button>
+      <button id="calcBtn">Calculate</button>
+      <button id="exportBtn" class="secondary">Export calculated JSON</button>
+      <input id="search" type="search" placeholder="Search item or supplier">
+    </div>
+  </header>
+  <main class="grid">
+    <section class="panel">
+      <h2>Input JSON</h2>
+      <textarea id="jsonInput" spellcheck="false"></textarea>
+      <h2>Bulk apply</h2>
+      <div class="bulk">
+        <input id="bulkShipping" type="number" step="0.01" placeholder="Shipping">
+        <input id="bulkTax" type="number" step="0.0001" placeholder="Tax 1.1">
+        <input id="bulkExchange" type="number" step="0.0001" placeholder="Exchange">
+        <input id="bulkProfit" type="number" step="0.0001" placeholder="Profit">
+        <input id="bulkDiscount" type="number" step="0.0001" placeholder="Discount">
+      </div>
+      <button id="bulkBtn" class="secondary">Apply bulk values to visible rows</button>
+      <div id="warnings"></div>
+    </section>
+    <section>
+      <div class="totals">
+        <div class="total"><strong>Total amount</strong><span id="totalAmount">0</span></div>
+        <div class="total"><strong>Total profit</strong><span id="totalProfit">0</span></div>
+        <div class="total"><strong>Items</strong><span id="itemCount">0</span></div>
+      </div>
+      <div class="panel" style="overflow:auto; max-height: calc(100vh - 170px);">
+        <table>
+          <thead>
+            <tr>
+              <th>Use</th><th>Item</th><th class="desc">Description / supplier</th><th class="num">Bidder</th><th class="num">Qty</th><th class="num">Shipping</th><th class="num">Tax</th><th class="num">Exchange</th><th class="num">Profit</th><th class="num">Discount</th><th class="num">Sales unit</th><th class="num">Ext price</th><th class="num">Profit</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const defaults = { shipping_cost: 0, tax_rate: 1.1, exchange_rate: 1.0, profit_rate: 1.25, discount_rate: 0 };
+    let data = { rfq_id: "", quotation_id: "", company_id: 1, user_id: 1, items: [] };
+    let calculated = null;
+    const fmt = n => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const num = (v, d) => v === null || v === undefined || v === "" ? d : Number(v);
+    const roundUnit = v => Math.round(v);
+    const roundPrice = v => v <= 0 ? 0 : Math.max(1000, Math.round(v / 1000) * 1000);
+    function calcItem(item) {
+      const qty = num(item.qty, 0), bidder = num(item.bidder_unit_price, 0);
+      const shipping = num(item.shipping_cost, defaults.shipping_cost);
+      const tax = num(item.tax_rate, defaults.tax_rate);
+      const exchange = num(item.exchange_rate, defaults.exchange_rate);
+      const profit = num(item.profit_rate, defaults.profit_rate);
+      const discount = num(item.discount_rate, defaults.discount_rate);
+      const actual = ((bidder + shipping) * tax) * exchange;
+      const profitUnit = actual * profit;
+      const discountAmount = profitUnit * discount;
+      const sales = roundUnit(profitUnit - discountAmount);
+      const ext = roundPrice(sales * qty);
+      const potential = (roundUnit(profitUnit) - roundUnit(actual)) * qty;
+      return { ...item, shipping_cost: shipping, tax_rate: tax, exchange_rate: exchange, profit_rate: profit, discount_rate: discount, actual_unit_price: actual, profit_unit_price: profitUnit, discount_amount: discountAmount, sales_unit_price: sales, ext_price: ext, potential_profit: potential };
+    }
+    function calculate() {
+      const items = data.items.map(calcItem);
+      const totalRaw = items.reduce((s, x) => s + Number(x.ext_price || 0), 0);
+      const totalProfit = items.reduce((s, x) => s + Number(x.potential_profit || 0), 0);
+      calculated = { ...data, items, totals: { total_amount: roundPrice(totalRaw), total_profit: totalProfit } };
+      render(items);
+    }
+    function render(items = data.items) {
+      const q = document.getElementById("search").value.toLowerCase();
+      const rows = document.getElementById("rows");
+      rows.innerHTML = "";
+      for (const item of items) {
+        const hay = `${item.item_id} ${item.company_description || ""} ${item.supplier_name || ""}`.toLowerCase();
+        if (q && !hay.includes(q)) continue;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><input type="checkbox" class="useRow" checked></td>
+          <td><span class="badge">${item.item_id ?? ""}</span></td>
+          <td class="desc">${item.company_description || ""}<br><small>${item.supplier_name || "No supplier selected"} ${item.currency_code || ""}</small></td>
+          <td class="num">${fmt(item.bidder_unit_price)}</td>
+          <td class="num">${fmt(item.qty)}</td>
+          <td><input data-k="shipping_cost" data-id="${item.item_id}" type="number" step="0.01" value="${num(item.shipping_cost, defaults.shipping_cost)}"></td>
+          <td><input data-k="tax_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.tax_rate, defaults.tax_rate)}"></td>
+          <td><input data-k="exchange_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.exchange_rate, defaults.exchange_rate)}"></td>
+          <td><input data-k="profit_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.profit_rate, defaults.profit_rate)}"></td>
+          <td><input data-k="discount_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.discount_rate, defaults.discount_rate)}"></td>
+          <td class="num">${fmt(item.sales_unit_price)}</td>
+          <td class="num">${fmt(item.ext_price)}</td>
+          <td class="num">${fmt(item.potential_profit)}</td>`;
+        rows.appendChild(tr);
+      }
+      document.querySelectorAll("input[data-k]").forEach(input => input.addEventListener("change", e => {
+        const id = e.target.dataset.id, k = e.target.dataset.k;
+        const item = data.items.find(x => String(x.item_id) === String(id));
+        if (item) item[k] = Number(e.target.value);
+        calculate();
+      }));
+      const totals = calculated?.totals || { total_amount: 0, total_profit: 0 };
+      document.getElementById("totalAmount").textContent = fmt(totals.total_amount);
+      document.getElementById("totalProfit").textContent = fmt(totals.total_profit);
+      document.getElementById("itemCount").textContent = items.length;
+    }
+    document.getElementById("loadBtn").onclick = () => {
+      data = JSON.parse(document.getElementById("jsonInput").value);
+      data.items = data.items || [];
+      calculate();
+    };
+    document.getElementById("sampleBtn").onclick = () => {
+      data = { rfq_id: 1, quotation_id: 1, company_id: 1, user_id: 1, items: [{ item_id: 1, company_description: "Example item", qty: 10, uom: "EA", supplier_status_id: 1, supplier_name: "Example supplier", bidder_unit_price: 100000, currency_code: "VND" }] };
+      document.getElementById("jsonInput").value = JSON.stringify(data, null, 2);
+      calculate();
+    };
+    document.getElementById("calcBtn").onclick = calculate;
+    document.getElementById("search").oninput = () => render(calculated?.items || data.items);
+    document.getElementById("bulkBtn").onclick = () => {
+      const map = { bulkShipping: "shipping_cost", bulkTax: "tax_rate", bulkExchange: "exchange_rate", bulkProfit: "profit_rate", bulkDiscount: "discount_rate" };
+      for (const [inputId, key] of Object.entries(map)) {
+        const raw = document.getElementById(inputId).value;
+        if (raw !== "") data.items.forEach(item => item[key] = Number(raw));
+      }
+      calculate();
+    };
+    document.getElementById("exportBtn").onclick = async () => {
+      calculate();
+      const text = JSON.stringify(calculated, null, 2);
+      await navigator.clipboard.writeText(text);
+      alert("Calculated pricing JSON copied to clipboard.");
+    };
+  </script>
+</body>
+</html>

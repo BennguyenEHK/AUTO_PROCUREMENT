@@ -1,0 +1,4 @@
+interface:
+  display_name: "RFQ Workflow Learner"
+  short_description: "Learn reusable RFQ workflow habits"
+  default_prompt: "Use $rfq-workflow-learner to observe this workflow and propose reusable improvements later."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ChatLLM Call"
+  short_description: "Call ChatLLM with safe request handling"
+  default_prompt: "Use $chatllm-call to send this extraction or reasoning task through ChatLLM safely."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RFQ Analysis"
+  short_description: "Analyze Gmail RFQs for QuoteFlow"
+  default_prompt: "Use $rfq-analysis to analyze this RFQ email subject and produce a traceable procurement report."

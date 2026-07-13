@@ -1,0 +1,4 @@
+interface:
+  display_name: "Submission QA Packager"
+  short_description: "QA and package final bid submissions"
+  default_prompt: "Use $submission-qa-packager to verify and package the final tender submission folders."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dispatch Parralel Agents"
+  short_description: "Coordinate independent Codex workers"
+  default_prompt: "Use $dispatch-parralel-agents to split these independent workstreams and reconcile the results."

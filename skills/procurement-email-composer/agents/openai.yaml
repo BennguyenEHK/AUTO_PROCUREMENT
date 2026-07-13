@@ -1,0 +1,4 @@
+interface:
+  display_name: "Procurement Email Composer"
+  short_description: "Draft procurement-safe emails"
+  default_prompt: "Use $procurement-email-composer to draft a professional procurement email from verified facts."

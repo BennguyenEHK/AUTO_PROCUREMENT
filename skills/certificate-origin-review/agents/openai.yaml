@@ -1,0 +1,4 @@
+interface:
+  display_name: "Certificate Origin Review"
+  short_description: "Review certificate and origin evidence"
+  default_prompt: "Use $certificate-origin-review to build a traceable certificate and country-of-origin review matrix."

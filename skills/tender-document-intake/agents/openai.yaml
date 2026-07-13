@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tender Document Intake"
+  short_description: "Index and structure tender documents"
+  default_prompt: "Use $tender-document-intake to build a traceable register and requirement baseline for these tender files."

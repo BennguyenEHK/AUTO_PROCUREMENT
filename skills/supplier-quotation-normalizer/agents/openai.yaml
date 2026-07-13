@@ -1,0 +1,4 @@
+interface:
+  display_name: "Supplier Quotation Normalizer"
+  short_description: "Normalize supplier quotations"
+  default_prompt: "Use $supplier-quotation-normalizer to extract and compare supplier quote data against tender items."

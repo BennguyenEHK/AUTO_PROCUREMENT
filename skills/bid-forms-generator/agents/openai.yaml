@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bid Forms Generator"
+  short_description: "Generate formal tender bid forms"
+  default_prompt: "Use $bid-forms-generator to generate customer-ready tender bid forms from the selected offer dataset."

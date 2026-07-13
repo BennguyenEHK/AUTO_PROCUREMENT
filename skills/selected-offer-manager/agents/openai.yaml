@@ -1,0 +1,4 @@
+interface:
+  display_name: "Selected Offer Manager"
+  short_description: "Manage final selected supplier offers"
+  default_prompt: "Use $selected-offer-manager to validate and freeze the selected supplier offer dataset."

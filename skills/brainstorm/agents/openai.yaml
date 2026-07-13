@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainstorm"
+  short_description: "Shape unclear ideas into designs"
+  default_prompt: "Use $brainstorm to explore this idea and turn it into a clear approved design."

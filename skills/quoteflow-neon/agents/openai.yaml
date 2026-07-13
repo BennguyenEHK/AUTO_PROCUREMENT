@@ -1,0 +1,4 @@
+interface:
+  display_name: "QuoteFlow Neon"
+  short_description: "Guard QuoteFlow Neon database work"
+  default_prompt: "Use $quoteflow-neon to inspect or persist this QuoteFlow database data safely."

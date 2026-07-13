@@ -1,0 +1,4 @@
+interface:
+  display_name: "Model Routing Policy"
+  short_description: "Choose safe procurement model routes"
+  default_prompt: "Use $model-routing-policy to choose the lightest safe model or worker route for this task."

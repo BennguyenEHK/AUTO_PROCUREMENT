@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scheduled Task"
+  short_description: "Register QuoteFlow reminders and watches"
+  default_prompt: "Use $scheduled-task to normalize and register this QuoteFlow reminder or monitoring task."
