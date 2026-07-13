@@ -1,0 +1,3 @@
+SIGNUP=false
+user_id=
+company_id=

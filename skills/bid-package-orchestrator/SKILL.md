@@ -18,6 +18,49 @@ Use this skill when the user asks for a full bid package, formal tender submissi
 
 The workflow is complete only when the required final outputs exist or a blocker is explicitly reported.
 
+## Signup Bootstrap Gate
+
+Before any ordinary bid-package workflow step, check the local signup state:
+
+```text
+C:\Users\LENOVO\.codex\skills\bid-package-orchestrator\signup\SIGNUP.txt
+```
+
+Expected default content:
+
+```text
+SIGNUP=false
+user_id=
+company_id=
+```
+
+If `SIGNUP=true` and both `user_id` and `company_id` are populated, continue the workflow and let `quoteflow-neon` use those values as the QuoteFlow identity context.
+
+If `SIGNUP=false`, the file is missing, or either ID is empty:
+
+1. Stop before RFQ database writes.
+2. Direct the user to open:
+   ```text
+   C:\Users\LENOVO\.codex\skills\bid-package-orchestrator\signup\signup.html
+   ```
+3. The user fills the procurement signup form and presses `Sign up and save JSON`.
+4. The HTML must create/export `signup-output.json` only after that button is pressed. Prefer saving it in the same folder:
+   ```text
+   C:\Users\LENOVO\.codex\skills\bid-package-orchestrator\signup\signup-output.json
+   ```
+5. Read `signup-output.json`, validate that `user_info.username` exists, and ignore any attempted `user_id` or `company_id` values from the JSON.
+6. Use the built-in Neon Postgres plugin, following `quoteflow-neon` target/schema rules, to inspect `user_company` and `user_info`.
+7. Insert `user_company` first, using only live columns from the JSON and omitting `company_id` because Neon assigns it.
+8. Insert `user_info` second, using the returned `company_id`, `username`, and optional live columns from the JSON. Omit `user_id` because Neon assigns it. Do not insert `password_hash` from the signup form.
+9. Read the returned `company_id` and `user_id`, then update `SIGNUP.txt` as UTF-8 without BOM:
+   ```text
+   SIGNUP=true
+   user_id=<returned user_id>
+   company_id=<returned company_id>
+   ```
+
+If the Neon insert fails, do not set `SIGNUP=true`. Report the blocker and keep the normal workflow paused.
+
 ## Database-First Stage Check
 
 Always start by using `quoteflow-neon` to inspect the relevant `rfq_analysis` record before deciding which downstream skill to call.
@@ -130,14 +173,15 @@ Do not store unrelated product images, datasheets, customer documents, or suppli
 ## Workflow
 
 1. Resolve the RFQ/tender identity from user input, Gmail subject, Drive folder, local files, reply/watch event, or `rfq_analysis` identifiers.
-2. Use `quoteflow-neon` to inspect the live `rfq_analysis` schema and fetch the matching row's stage fields.
-3. Activate `rfq-workflow-learner` quietly for observation when the task involves a multi-stage RFQ/bid workflow, a customer/supplier email, a stage transition, or a repeated user correction pattern.
-4. If no matching row exists, or `current_stage` is empty/new and the request is analysis/package intake, start with `rfq-analysis` for Gmail sources or `tender-document-intake` for file/package sources.
-5. Confirm tender scope, RFQ/RFP/ITT identifiers, customer, deadline, bid validity, submission platform, and technical/commercial separation rules.
-6. Identify available inputs: Gmail thread, Drive folder, local tender files, supplier offers, customer/supplier reply history, pricing data, company details, branding logo/signature images, signatures, seals, and required customer forms.
-7. If the user uploads or provides two branding pictures for proposal generation, run Branding Asset Intake before proposal generation.
-8. If the request or active watch includes a new customer/supplier/OEM/manufacturer/distributor reply, persist the source event first, then run the Customer/Supplier Reply Impact Gate before ordinary stage routing.
-8. Route by verified database stage and artifacts:
+2. Run the Signup Bootstrap Gate. If signup is incomplete, pause normal workflow until `SIGNUP.txt` is updated with returned Neon IDs.
+3. Use `quoteflow-neon` to inspect the live `rfq_analysis` schema and fetch the matching row's stage fields.
+4. Activate `rfq-workflow-learner` quietly for observation when the task involves a multi-stage RFQ/bid workflow, a customer/supplier email, a stage transition, or a repeated user correction pattern.
+5. If no matching row exists, or `current_stage` is empty/new and the request is analysis/package intake, start with `rfq-analysis` for Gmail sources or `tender-document-intake` for file/package sources.
+6. Confirm tender scope, RFQ/RFP/ITT identifiers, customer, deadline, bid validity, submission platform, and technical/commercial separation rules.
+7. Identify available inputs: Gmail thread, Drive folder, local tender files, supplier offers, customer/supplier reply history, pricing data, company details, branding logo/signature images, signatures, seals, and required customer forms.
+8. If the user uploads or provides two branding pictures for proposal generation, run Branding Asset Intake before proposal generation.
+9. If the request or active watch includes a new customer/supplier/OEM/manufacturer/distributor reply, persist the source event first, then run the Customer/Supplier Reply Impact Gate before ordinary stage routing.
+10. Route by verified database stage and artifacts:
    - `report_analysis`, `rfq_analysis`, `intake`, empty, or new: call `rfq-analysis` for Gmail RFQs or `tender-document-intake` for file/tender packages.
    - `tender_document_intake`: call `tender-document-intake`.
    - `supplier_search` or `ready_for_sourcing`: call `suppliers-search`.
@@ -148,15 +192,15 @@ Do not store unrelated product images, datasheets, customer documents, or suppli
    - `selected_offer` or `ready_for_selection`: call `selected-offer-manager`.
    - `bid_forms_generation` or `ready_for_forms`: call `bid-forms-generator`.
    - `submission_qa`, `ready_for_qa`, or `packaging`: call `submission-qa-packager`.
-9. If database stage and user request conflict, explain the conflict and choose the safer earlier stage unless the user explicitly instructs a later-stage action with sufficient source data.
-10. After each successful stage or reply-impact review, require the stage owner to persist its structured result table first, then use `quoteflow-neon` to persist the new `current_stage`, `stage_status`, `next_required_action`, `stage_blockers`, and `completed_stages` when the target RFQ row is clear.
-11. Let `rfq-workflow-learner` capture the stage outcome, user corrections, evidence pattern, blocker, reply-impact result, or next action in background mode when persistence is available or as chat-local observation when it is not.
-12. For any customer/supplier email, supplier RFQ email, clarification request, follow-up, or final cover email, call `procurement-email-composer` for wording and accuracy first. Use `gmail:gmail` only for Gmail search/read/draft/send operations after the draft has been shown in chat and explicitly approved.
-13. After an approved Gmail send or reply is completed for an RFQ workflow, immediately call `scheduled-task` to create or update an active hourly `rfq_watch` unless the user explicitly says not to monitor. Register the sent/replied Gmail thread as a watch target, checkpoint the latest known message, and request notification through ChatGPT/mobile/email according to the user's ChatGPT notification settings. Include in the watch instruction that meaningful new replies must return to this orchestrator's Customer/Supplier Reply Impact Gate before advancing the bid. Do not promise direct SMS or phone-number notification unless a separate notification integration exists.
-14. Proactively identify other schedule-worthy tasks such as bid deadlines, supplier quote validity expiry, customer clarification due dates, supplier follow-up dates, OEM/document/certificate response watches, pricing approvals, selected-offer approvals, QA deadlines, or final submission reminders.
-15. For any proactive schedule-worthy task outside the mandatory post-email watch, ask the user for approval before calling `scheduled-task`. The approval request must be 20-30 words maximum and include the task description, purpose, and reason it should be created.
-16. At natural pause points such as after an email send, stage completion, blocker report, reply-impact review, or final session summary, allow `rfq-workflow-learner` to propose a short approval-gated skill update or creation idea only when it has a concrete repeated pattern.
-17. End only when final delivery outputs exist or the blocker is explicitly stated.
+11. If database stage and user request conflict, explain the conflict and choose the safer earlier stage unless the user explicitly instructs a later-stage action with sufficient source data.
+12. After each successful stage or reply-impact review, require the stage owner to persist its structured result table first, then use `quoteflow-neon` to persist the new `current_stage`, `stage_status`, `next_required_action`, `stage_blockers`, and `completed_stages` when the target RFQ row is clear.
+13. Let `rfq-workflow-learner` capture the stage outcome, user corrections, evidence pattern, blocker, reply-impact result, or next action in background mode when persistence is available or as chat-local observation when it is not.
+14. For any customer/supplier email, supplier RFQ email, clarification request, follow-up, or final cover email, call `procurement-email-composer` for wording and accuracy first. Use `gmail:gmail` only for Gmail search/read/draft/send operations after the draft has been shown in chat and explicitly approved.
+15. After an approved Gmail send or reply is completed for an RFQ workflow, immediately call `scheduled-task` to create or update an active hourly `rfq_watch` unless the user explicitly says not to monitor. Register the sent/replied Gmail thread as a watch target, checkpoint the latest known message, and request notification through ChatGPT/mobile/email according to the user's ChatGPT notification settings. Include in the watch instruction that meaningful new replies must return to this orchestrator's Customer/Supplier Reply Impact Gate before advancing the bid. Do not promise direct SMS or phone-number notification unless a separate notification integration exists.
+16. Proactively identify other schedule-worthy tasks such as bid deadlines, supplier quote validity expiry, customer clarification due dates, supplier follow-up dates, OEM/document/certificate response watches, pricing approvals, selected-offer approvals, QA deadlines, or final submission reminders.
+17. For any proactive schedule-worthy task outside the mandatory post-email watch, ask the user for approval before calling `scheduled-task`. The approval request must be 20-30 words maximum and include the task description, purpose, and reason it should be created.
+18. At natural pause points such as after an email send, stage completion, blocker report, reply-impact review, or final session summary, allow `rfq-workflow-learner` to propose a short approval-gated skill update or creation idea only when it has a concrete repeated pattern.
+19. End only when final delivery outputs exist or the blocker is explicitly stated.
 
 ## Parallel Dispatch
 

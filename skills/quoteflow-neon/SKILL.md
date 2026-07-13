@@ -21,15 +21,18 @@ Use these defaults unless the user supplies different values or live Neon data c
 - Main branch id: `br-soft-smoke-ahc5mcj6`
 - Default `company_id`: `1`
 - Default `user_id`: `1`
+- Signup identity file: `C:\Users\LENOVO\.codex\skills\bid-package-orchestrator\signup\SIGNUP.txt`
 
 Treat the project id as a hint from a successful prior inspection, not a permanent configuration. Re-check Neon if project lookup fails or if multiple projects appear. For live QuoteFlow work, use the main branch id above unless the user explicitly asks to inspect or test a temporary branch.
+
+Before falling back to `company_id = 1` and `user_id = 1`, read the signup identity file when it exists. If it contains `SIGNUP=true` plus populated `company_id` and `user_id`, use those IDs as the QuoteFlow identity context for reads, inserts, updates, stage persistence, scheduled tasks, and report generation.
 
 ## Core Rules
 
 1. Prefer Neon plugin tools for database truth.
 2. Search/list Neon projects and select `quoteflow_ai` before using project hints.
 3. Inspect live schema before writes using `describe_table_schema` or equivalent.
-4. Apply `company_id = 1` and `user_id = 1` to QuoteFlow workflow reads/writes when no safer user-provided context exists.
+4. Prefer `company_id` and `user_id` from the signup identity file when `SIGNUP=true`; otherwise apply `company_id = 1` and `user_id = 1` to QuoteFlow workflow reads/writes only when no safer user-provided context exists.
 5. Never invent IDs other than these explicit defaults.
 6. Do not silently run destructive actions.
 7. Do not run production schema changes without explicit user approval.
@@ -95,11 +98,19 @@ company_id = 1
 user_id = 1
 ```
 
-Use these defaults for searches, inserts, updates, and RFQ persistence when no explicit alternative is supplied.
+First read the signup identity file:
 
-For reads, include `company_id = 1` when the table has `company_id`. Include `user_id = 1` when the table has `user_id` and the query is user-scoped.
+```text
+C:\Users\LENOVO\.codex\skills\bid-package-orchestrator\signup\SIGNUP.txt
+```
 
-For inserts/updates, include both fields when the live table has those columns. If a table requires `company_id` and does not allow nulls, use `1` unless the user explicitly supplies another company id. Pass the main branch id for live writes when the Neon tool supports it.
+If the file has `SIGNUP=true` and non-empty `company_id` and `user_id`, use those values instead of the hardcoded defaults. If the file is missing, incomplete, or has `SIGNUP=false`, use `company_id = 1` and `user_id = 1` only when no explicit alternative is supplied and the write is otherwise safe.
+
+For reads, include the resolved `company_id` when the table has `company_id`. Include the resolved `user_id` when the table has `user_id` and the query is user-scoped.
+
+For inserts/updates, include both resolved fields when the live table has those columns. If a table requires `company_id` and does not allow nulls, use the signup value when present, otherwise use `1` unless the user explicitly supplies another company id. Pass the main branch id for live writes when the Neon tool supports it.
+
+Do not edit `SIGNUP.txt` from this skill except to report the path or read identity context. The signup bootstrap and file update are owned by `bid-package-orchestrator`.
 
 For deletes, broad updates, migrations, and data repair, show the target scope first and ask for approval. If approved, execute live deletes and broad updates on the main branch only, scoped as tightly as possible.
 
@@ -171,4 +182,3 @@ When reporting database work, state:
 - Any schema gaps or migration status.
 
 Do not expose credentials, connection strings, raw tokens, or unrelated table data.
-

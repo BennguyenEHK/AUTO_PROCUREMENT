@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuoteFlow Procurement Signup</title>
+  <style>
+    :root {
+      --ink: #17212b;
+      --muted: #61707f;
+      --line: #d8e0e7;
+      --panel: #ffffff;
+      --field: #f7fafc;
+      --accent: #0f766e;
+      --accent-dark: #0b4f4a;
+      --signal: #b7791f;
+      --paper: #eef3f6;
+      --focus: #2c7be5;
+      --error: #b42318;
+      --ok: #0f766e;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(23, 33, 43, 0.06) 1px, transparent 1px),
+        linear-gradient(rgba(23, 33, 43, 0.05) 1px, transparent 1px),
+        var(--paper);
+      background-size: 32px 32px;
+    }
+
+    main {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(280px, 0.92fr) minmax(340px, 1.25fr);
+    }
+
+    .identity-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(28px, 5vw, 64px);
+      color: #f7fbfc;
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.96), rgba(11, 79, 74, 0.98)),
+        #0b4f4a;
+      overflow: hidden;
+    }
+
+    .identity-panel::after {
+      content: "";
+      position: absolute;
+      inset: auto -18% 9% 28%;
+      height: 130px;
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      transform: skewY(-9deg);
+    }
+
+    .brand-lockup {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      margin: 0 0 18px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 11ch;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.8rem, 7vw, 5.6rem);
+      font-weight: 700;
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .panel-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 36rem;
+      color: rgba(255, 255, 255, 0.83);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .status-strip {
+      display: grid;
+      gap: 10px;
+      margin-top: 28px;
+      max-width: 30rem;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.92rem;
+    }
+
+    .status-mark {
+      width: 10px;
+      height: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.72);
+      transform: rotate(45deg);
+      flex: 0 0 auto;
+    }
+
+    .form-panel {
+      padding: clamp(24px, 5vw, 64px);
+      align-self: center;
+    }
+
+    form {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 24px 80px rgba(23, 33, 43, 0.16);
+      overflow: hidden;
+    }
+
+    .form-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 28px 32px 24px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff, #f8fbfc);
+    }
+
+    .form-header h2 {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.8vw, 2.2rem);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .form-header p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .badge {
+      align-self: flex-start;
+      min-width: 128px;
+      padding: 10px 12px;
+      border: 1px solid #c6d7df;
+      border-radius: 6px;
+      color: var(--accent-dark);
+      background: #eef9f7;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .section {
+      padding: 28px 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section:last-of-type {
+      border-bottom: 0;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 18px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: var(--accent-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--signal);
+      transform: rotate(45deg);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #273542;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #cbd6df;
+      border-radius: 6px;
+      background: var(--field);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 500;
+      padding: 12px 13px;
+      outline: none;
+      transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--focus);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(44, 123, 229, 0.16);
+    }
+
+    .required {
+      color: var(--signal);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 32px 30px;
+      background: #fbfcfd;
+      border-top: 1px solid var(--line);
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 13px 18px;
+      color: #fff;
+      background: var(--accent);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 12px 28px rgba(15, 118, 110, 0.25);
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+    }
+
+    button:focus-visible {
+      outline: 3px solid rgba(44, 123, 229, 0.35);
+      outline-offset: 3px;
+    }
+
+    .message {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .message.error {
+      color: var(--error);
+      font-weight: 700;
+    }
+
+    .message.ok {
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    @media (max-width: 860px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .identity-panel {
+        min-height: 360px;
+      }
+
+      .form-panel {
+        padding-top: 24px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .grid,
+      .form-header,
+      .actions {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .section,
+      .form-header,
+      .actions {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .badge {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="identity-panel" aria-label="QuoteFlow identity">
+      <div class="brand-lockup">
+        <p class="eyebrow">QuoteFlow AI</p>
+        <h1>Procurement access</h1>
+      </div>
+      <div class="panel-copy">
+        <p>Register the company and operator identity used for RFQ intake, supplier sourcing, pricing, compliance review, and bid-package persistence.</p>
+        <div class="status-strip" aria-label="Signup checkpoints">
+          <div class="status-item"><span class="status-mark"></span><span>Company profile</span></div>
+          <div class="status-item"><span class="status-mark"></span><span>User profile</span></div>
+          <div class="status-item"><span class="status-mark"></span><span>Neon identity handoff</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-panel" aria-label="Signup form">
+      <form id="signupForm" novalidate>
+        <div class="form-header">
+          <div>
+            <h2>Set up QuoteFlow identity</h2>
+            <p>The exported JSON is used to create `user_company` and `user_info` records. Database IDs are assigned by Neon.</p>
+          </div>
+          <div class="badge">Local setup</div>
+        </div>
+
+        <section class="section">
+          <h3 class="section-title">Company record</h3>
+          <div class="grid">
+            <label class="wide">Company name
+              <input name="company_name" autocomplete="organization" placeholder="Hoang Huy Trading Co., Ltd">
+            </label>
+            <label>Company number
+              <input name="company_number" autocomplete="off" placeholder="Tax or registration number">
+            </label>
+            <label>Company email
+              <input name="company_email" type="email" autocomplete="email" placeholder="procurement@example.com">
+            </label>
+            <label>Company fax
+              <input name="company_fax" autocomplete="off" placeholder="+84 ...">
+            </label>
+            <label class="wide">Company address
+              <textarea name="company_address" autocomplete="street-address" placeholder="Registered address"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3 class="section-title">User record</h3>
+          <div class="grid">
+            <label>Username <span class="required">required</span>
+              <input name="username" autocomplete="username" required placeholder="quote.manager">
+            </label>
+            <label>Full name
+              <input name="full_name" autocomplete="name" placeholder="Nguyen Quang Huy">
+            </label>
+            <label class="wide">User email
+              <input name="email" type="email" autocomplete="email" placeholder="user@example.com">
+            </label>
+          </div>
+        </section>
+
+        <div class="actions">
+          <p id="message" class="message">Ready</p>
+          <button type="submit">Sign up and save JSON</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("signupForm");
+    const message = document.getElementById("message");
+
+    function clean(value) {
+      const text = String(value || "").trim();
+      return text.length ? text : null;
+    }
+
+    function compact(object) {
+      return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== null && value !== ""));
+    }
+
+    function buildPayload(formData) {
+      const company = compact({
+        company_name: clean(formData.get("company_name")),
+        company_number: clean(formData.get("company_number")),
+        company_address: clean(formData.get("company_address")),
+        company_fax: clean(formData.get("company_fax")),
+        company_email: clean(formData.get("company_email"))
+      });
+
+      const user = compact({
+        username: clean(formData.get("username")),
+        full_name: clean(formData.get("full_name")),
+        email: clean(formData.get("email")),
+        user_role: "user",
+        user_status: "active"
+      });
+
+      return {
+        user_company: company,
+        user_info: user,
+        metadata: {
+          source: "bid-package-orchestrator/signup/signup.html",
+          generated_at: new Date().toISOString()
+        }
+      };
+    }
+
+    async function saveJson(payload) {
+      const fileName = "signup-output.json";
+      const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], { type: "application/json" });
+
+      if ("showSaveFilePicker" in window) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{
+            description: "JSON file",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return "Saved signup-output.json";
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      return "Downloaded signup-output.json";
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      message.className = "message";
+      message.textContent = "Preparing signup JSON";
+
+      if (!form.reportValidity()) {
+        message.className = "message error";
+        message.textContent = "Username is required";
+        return;
+      }
+
+      try {
+        const payload = buildPayload(new FormData(form));
+        if (!payload.user_info.username) {
+          throw new Error("Username is required");
+        }
+        const result = await saveJson(payload);
+        message.className = "message ok";
+        message.textContent = result;
+      } catch (error) {
+        message.className = "message error";
+        message.textContent = error && error.message ? error.message : "Could not save signup-output.json";
+      }
+    });
+  </script>
+</body>
+</html>
