@@ -10,7 +10,7 @@ Search for these component names and nearby equivalents:
 - Incoming email persistence: `incoming_emails`, `incomingEmails`, `IncomingEmail`.
 - RFQ persistence: `rfq_analysis`, `rfqAnalysis`, `RfqAnalysis`.
 - Abacus AI: `abacus`, `Abacus`, `modelRouter`, `jsonRepair`, `retry`.
-- Item extraction: skill-bundled `C:\Users\LENOVO\.codex\skills\rfq-analysis\tools\item_extract.ps1`, `item_extract`, `itemExtract`, `extractItems`, `line_items`.
+- Item extraction: canonical TypeScript tool `C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts`, `extractItems`, `line_items`.
 - Database: use `$quoteflow-neon` and the built-in Neon Postgres plugin first. Local `neon`, `postgres`, `pg`, `drizzle`, `prisma`, or `supabase` files are secondary implementation references only.
 - Attachment cache: `sha256`, `hash`, `parsed_output`, `attachments`.
 
@@ -25,7 +25,7 @@ Prefer existing service functions over direct SQL or new clients. If only SQL mi
 5. Attachments are downloaded to `Documents/QuoteFlowAI/RFQ/<rfq>/incoming/`.
 6. Attachment parser returns compact source-referenced facts.
 7. RFQ context package feeds Abacus AI RFQ-level JSON analysis.
-8. `normalized_email_body` is passed to the skill-bundled PowerShell `tools/item_extract.ps1` as `email_body_content`; the tool returns raw `items` plus downstream-shaped `rfq_items`.
+8. `normalized_email_body` is passed to the canonical TypeScript tool `C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts` as `email_body_content`; the tool returns raw `items` plus downstream-shaped `rfq_items`.
 9. Item summaries are validated against extracted item ids.
 10. Neon schema tools inspect `rfq_analysis` and `rfq_items`; upserts store validated RFQ-level fields and item rows, linking back to source records when supported.
 
@@ -39,37 +39,17 @@ When TypeScript code is present, add only the smallest necessary orchestration w
 - Validate all model JSON before persistence.
 - Avoid schema changes unless a migration is clearly required by existing architecture.
 
-The local item extraction tool lives at `C:\Users\LENOVO\.codex\skills\rfq-analysis\tools\item_extract.ps1` and accepts stdin JSON as the preferred input. It also accepts `-InputJson` or `-EmailBodyContent` for short/simple text:
+The canonical item extraction tool lives at `C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts` and accepts stdin JSON as the preferred input:
 
 ```json
 { "email_body_content": "..." }
 ```
 
-It should return:
-
-```json
-{
-  "success": true,
-  "items": [{ "item_id": 1, "company_description": "...", "qty": 1, "uom": "EA" }],
-  "rfq_items": [
-    {
-      "item_id": 1,
-      "company_requirement": { "company_description": "...", "qty": 1, "uom": "EA" }
-    }
-  ]
-}
-```
-
-The tool implementation should be the item-only extraction code from `lib/utils/rfq-extractor.ts`, not the full `extractAll()` pipeline. Prefer PowerShell here because it is available on Windows without TypeScript, Node, or Python setup.
-
-On Windows machines with script execution disabled, call it with:
+The tool implementation is the item-only extraction code, not the full `extractAll()` pipeline. Invoke it through the webapp's installed `tsx` loader:
 
 ```powershell
-$utf8NoBom = New-Object System.Text.UTF8Encoding $false
-[Console]::OutputEncoding = $utf8NoBom
-$OutputEncoding = $utf8NoBom
-$extractTool = 'C:\Users\LENOVO\.codex\skills\rfq-analysis\tools\item_extract.ps1'
-$payload | powershell -NoProfile -ExecutionPolicy Bypass -File $extractTool
+$extractTool = 'C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts'
+$payload | node --import tsx $extractTool
 ```
 
 ## Neon Persistence Mapping

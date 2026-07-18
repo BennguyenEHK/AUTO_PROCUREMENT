@@ -1,6 +1,6 @@
 ---
 name: comercial-pricing
-description: Calculate and persist QuoteFlow commercial quotation pricing. Use when Codex needs to create or update pricing variables, calculate sales_unit_price, ext_price, total_amount, potential_profit, or total_profit for RFQ quotation items; build a mandatory pricing canvas for user review and approval before official pricing; fetch bidder prices from supplier_item_status, quantities from rfq_items, pricing variables/results from quotation_pricing, quotation totals from quotations, and RFQ context from rfq_analysis through $quoteflow-neon; or prepare approved pricing values handed to report-generator for native editable commercial proposal HTML/PDF generation.
+description: Calculate and persist QuoteFlow commercial quotation pricing. Use when Codex needs to create or update pricing variables, calculate sales_unit_price, ext_price, total_amount, potential_profit, or total_profit for RFQ quotation items; obtain web-app user review and approval before official pricing; and prepare approved pricing values for proposal review.
 ---
 
 # Comercial Pricing
@@ -17,23 +17,27 @@ Use this skill to calculate quotation pricing outputs needed for final quotation
 
 This skill is intentionally named `comercial-pricing` to match the user's requested skill name. It is the pricing calculation and persistence layer, not the final Excel/PDF proposal generator.
 
+## Web App Navigation
+
+For normal pricing review and user approval, return `http://localhost:3000/?view=pricing&rfqId=<id>`. Do not generate or open a standalone pricing canvas or HTML review packet for normal workflow use. Retain deterministic calculation validation data only as internal workflow evidence; generate a standalone artifact only when the customer explicitly requires it and verify its path before returning it.
+
 ## Workflow Stage
 
 - Stage: `commercial_pricing`
 - Previous stage: `certificate_origin_review` or `technical_compliance_review`.
 - Next stage: `selected_offer`.
 - Stage owner: `bid-package-orchestrator`.
-- State persistence: after the user approves the pricing canvas/exported pricing JSON, calculation is validated, and pricing is persisted, use `quoteflow-neon` to update stage fields when the target RFQ row is clear. On success, append this stage to `completed_stages`, set `current_stage` to the orchestrator-selected next stage, set `stage_status` to `ready_for_next_stage` or `in_progress`, clear/refresh `stage_blockers`, and write `next_required_action`. On block, do not advance `current_stage`; set `stage_status = blocked`, populate `stage_blockers`, and set `next_required_action` to the unblock action.
-- Boundary: this skill calculates and persists pricing. It must not persist official customer-facing prices, advance to selected-offer, expose internal profit in customer-facing outputs, freeze final selected offers, or generate final bid forms until the pricing canvas review is completed and approved by the user.
+- State persistence: after the user approves pricing in the web app or explicitly approves direct pricing, calculation is validated, and pricing is persisted, use `quoteflow-neon` to update stage fields when the target RFQ row is clear. On success, append this stage to `completed_stages`, set `current_stage` to the orchestrator-selected next stage, set `stage_status` to `ready_for_next_stage` or `in_progress`, clear/refresh `stage_blockers`, and write `next_required_action`. On block, do not advance `current_stage`; set `stage_status = blocked`, populate `stage_blockers`, and set `next_required_action` to the unblock action.
+- Boundary: this skill calculates and persists pricing. It must not persist official customer-facing prices, advance to selected-offer, expose internal profit in customer-facing outputs, freeze final selected offers, or generate final bid forms until web-app or direct pricing approval is complete.
 ## Required Skills
 
 - Use `$quoteflow-neon` for all database schema inspection, reads, inserts, updates, and persistence.
-- Use `$frontend-design` guidance for the pricing canvas: dense, clear, professional, searchable/editable, not a landing page.
-- Use `$report-generator` later for native editable commercial proposal HTML/PDF outputs after pricing has been persisted. Do not use spreadsheet, document, or PDF plugins for the QuoteFlow proposal generation path.
+- Use the QuoteFlow web app pricing view for the dense, clear, professional approval form.
+- Use `$report-generator` later for the canonical proposal deep link after pricing has been persisted. Generate a standalone proposal only when the customer explicitly requires it.
 
 ## Database Preflight
 
-Before writing anything, inspect live schemas on the QuoteFlow main branch for:
+Before writing anything, use `$quoteflow-neon` to inspect live schemas on the QuoteFlow main branch for:
 
 - `rfq_analysis`
 - `rfq_items`
@@ -41,7 +45,7 @@ Before writing anything, inspect live schemas on the QuoteFlow main branch for:
 - `quotations`
 - `quotation_pricing`
 
-Use default `company_id = 1` and `user_id = 1` unless the user supplies safer explicit context.
+Use the active QuoteFlow signup/company/user context from the orchestrator or `$quoteflow-neon`. Do not invent company/user IDs.
 
 Observed live schema facts:
 
@@ -94,28 +98,67 @@ Important rounding notes:
 - `ext_price` rounds to nearest `1000`, so it may not exactly equal `sales_unit_price * qty` after rounding.
 - `total_profit` is not rounded and is for chat/report summary only.
 
-## Pricing Canvas
+## Pricing Review
 
-Use `assets/pricing-canvas.html` as the reusable local review template. For every official commercial-pricing run, the canvas review is mandatory unless the user explicitly says to skip the canvas and approve pricing directly in chat for a small/simple RFQ.
+Preferred interactive UI: use the reusable QuoteFlow web app pricing panel when it is available:
 
-For the mandatory review packet:
+```text
+C:\Users\LENOVO\.codex\skills\quoteflow-webapp
+```
 
-1. Build a RFQ-specific `pricing-input.json` containing the selected supplier candidate, bidder price, quantity, currency, and current/default pricing variables for every item.
-2. Place the review packet in the RFQ working folder when one exists, otherwise in a clear local workspace folder. Include the pricing input JSON and either a copied RFQ-specific HTML canvas or a clear path/link to the reusable canvas plus the JSON to paste/import.
-3. Return the absolute Windows path and browser-safe `file:///C:/...` link for the canvas or review packet.
-4. Stop before official persistence. Ask the user to enter/adjust item-level values such as `shipping_cost`, `tax_rate`, `exchange_rate`, `profit_rate`, `discount_rate`, and supplier selection, then export or approve the calculated JSON.
-5. Treat the user's exported JSON or explicit approval message as the approval source. Record that approval source in the chat report.
+The web app Pricing panel is the normal interactive review surface for local work. It must keep the two-tier behavior: typing edits pricing variables in React memory only; pressing `Apply` calculates and persists official pricing through the app API/database path. After web app persistence, re-read `quotations` and `quotation_pricing` through `quoteflow-neon` before reporting success or advancing the workflow stage.
+
+After pricing is applied, use `http://localhost:3000/?view=proposal&rfqId=<id>` for technical/commercial proposal review. Retain `pricing-calculator.ps1` solely for deterministic validation.
+
+Use the web-app Pricing view for every official commercial-pricing run unless the user explicitly approves direct pricing in chat. Build the review from `$quoteflow-neon` sourced `rfq_items`, supplier candidates, existing pricing variables, and quotation header data.
+
+## Internal Pricing Validation Evidence
+
+Store deterministic validation evidence only when needed for audit or retry, scoped by RFQ reference or `rfq_id`:
+
+```text
+C:\Users\LENOVO\.codex\skills\comercial-pricing\output\<rfq-reference-or-rfq_id>\
+```
+
+Use filesystem-safe folder names. Replace characters outside letters, numbers, dash, underscore, and dot with `_`.
+
+Mandatory files:
+
+- `pricing-input.json`: Neon-sourced web-app pricing input built from `rfq_items`, `supplier_item_status`, `quotation_pricing`, and `quotations`.
+- `pricing-output-calculated.json`: calculated JSON received from the approved web-app review or direct approval.
+- `pricing-output-approved.json`: final user-approved pricing JSON used as the persistence source.
+- `pricing-validation.json`: deterministic verification result from `pricing-calculator.ps1` or an equivalent verified formula before Neon persistence. Do not retire the PowerShell validator based on the interactive Pricing panel alone.
+
+Optional files:
+
+- `pricing-warnings.json`: missing price, skipped item, currency, rounding, or supplier-selection warnings.
+- `pricing-persistence-result.json`: inserted/updated/skipped row counts and quotation total after Neon persistence.
+
+Do not return these internal JSON paths or local preview links during normal workflow. Return the canonical pricing deep link and concise approval status instead.
+
+For the mandatory web-app review:
+
+1. Build a RFQ-specific `pricing-input.json` containing one array entry per `rfq_items` row. Each entry must preserve `item_id`, `company_description`, `qty`, `uom`, selected supplier/candidate supplier metadata, bidder price, currency, existing `quotation_pricing` values, and current/default pricing variables.
+2. Use the canonical pricing deep link with the RFQ ID; do not copy or generate a static HTML canvas.
+3. Stop before official persistence and require web-app review or explicit direct approval.
+4. Treat approved web-app values or explicit approval as the approval source. Save validation evidence only when needed for audit or retry, and record the approval source in the chat report.
 
 The canvas supports:
 
-- JSON import/paste.
-- Per-item pricing variable edits.
-- Bulk applying variables to selected items.
+- Auto-loaded RFQ item cells from the `$quoteflow-neon` sourced pricing input array.
+- Search by item ID, description, supplier, or currency above the pricing board.
+- A scrollable item-cell board where each item has its own quotation-pricing input box.
+- Per-item pricing variable edits for `shipping_cost`, `tax_rate`, `exchange_rate`, `profit_rate`, and `discount_rate`.
+- Checkboxes per item for bulk updates.
+- Bulk applying variables to checked selected items.
+- Bulk applying variables to all items.
 - Supplier selection metadata.
-- Instant calculation preview.
-- Export of calculated JSON for persistence.
+- Instant JavaScript calculation preview for every item.
+- A live results board under the item-cell board and above the action buttons.
+- A left-side `Calculate` action and right-side `Print output JSON` / copy output action.
+- Export/copy of calculated JSON for persistence.
 
-The canvas is the official review gate. Database persistence must still be performed by Codex through `$quoteflow-neon` only after the user accepts or provides the final pricing JSON. Do not silently use defaults to create final prices unless the user has seen and approved those defaults.
+The canvas is the official review gate. JavaScript is the live user-facing calculator so the user can see item and total changes immediately. Database persistence must still be performed by Codex through `$quoteflow-neon` only after the user accepts or provides the final pricing JSON. Before persistence, verify the approved JSON with `pricing-calculator.ps1` or an equivalent deterministic formula to catch browser/editing mistakes. Do not silently use defaults to create final prices unless the user has seen and approved those defaults.
 
 Input JSON shape for the canvas and calculator:
 
@@ -160,11 +203,11 @@ The script returns JSON with calculated item rows and totals.
 2. Fetch candidate supplier rows from `supplier_item_status` for the same `rfq_id` and item IDs.
 3. Fetch or create/select the target `quotations` row for the RFQ.
 4. Fetch existing `quotation_pricing` rows for that `quotation_id`.
-5. Build and save the RFQ-specific pricing canvas input using bidder price, qty, selected supplier candidate, and existing pricing variables.
-6. Present the pricing canvas/review packet path to the user and stop for item-level pricing variable entry, supplier selection, and approval.
-7. Accept the user's exported pricing JSON or explicit chat approval as the approval source; if the user changes values in chat, rebuild the pricing input and restate the final variables before calculation.
-8. Run `pricing-calculator.ps1` or equivalent formula only after approval.
-9. Persist each item to `quotation_pricing`:
+5. Build and save the RFQ-specific pricing input array from `rfq_items`, joined supplier candidates, existing `quotation_pricing`, and quotation header data. Every `rfq_items` row must appear in the array unless it is explicitly skipped with a reason.
+6. Return `http://localhost:3000/?view=pricing&rfqId=<id>` and stop for item-level pricing variable entry, selected-item bulk update, all-item bulk update, supplier selection, and approval in the web app.
+8. Accept the user's exported/copied calculated pricing JSON or explicit chat approval as the approval source; if the user changes values in chat, rebuild the pricing input and restate the final variables before calculation.
+9. Save the user's calculated JSON as `pricing-output-calculated.json`, save the approved persistence source as `pricing-output-approved.json`, then run `pricing-calculator.ps1` or equivalent deterministic formula after approval to verify the JavaScript-calculated output before database persistence. Save the verification output as `pricing-validation.json`.
+10. Persist each item to `quotation_pricing`:
    - `item_id`
    - `quotation_id`
    - `company_id`
@@ -178,8 +221,8 @@ The script returns JSON with calculated item rows and totals.
    - `sales_unit_price`
    - `ext_price`
    - `potential_profit`
-10. Persist `total_amount` to `quotations.total_amount`.
-11. Return a concise chat report with approval source, item count, total amount, total profit, and warnings.
+11. Persist `total_amount` to `quotations.total_amount`.
+12. Return a concise chat report with approval source, item count, total amount, total profit, and warnings.
 
 Do not store `total_profit` in the quotation document output unless the user explicitly asks. It is a business-margin value and should remain in the internal chat/report summary.
 
@@ -187,7 +230,7 @@ Do not store `total_profit` in the quotation document output unless the user exp
 
 - Inspect `quotation_pricing` immediately before writes.
 - Do not invent columns.
-- Do not persist official pricing or advance the stage from `commercial_pricing` until the user has completed or explicitly approved the pricing canvas/review packet.
+- Do not persist official pricing or advance the stage from `commercial_pricing` until the user has completed web-app review or explicitly approved direct pricing.
 - Use scoped upsert/update behavior consistent with live primary keys. Current live primary key is `quotation_pricing.item_id`; if that remains true, only one pricing row can exist per item. Report this limitation if multiple quotations per same item are needed.
 - If the same item has multiple supplier candidates, persist pricing only after a supplier candidate is selected.
 - Do not overwrite existing pricing variables without user approval when they differ from the proposed inputs.
@@ -198,7 +241,8 @@ Do not store `total_profit` in the quotation document output unless the user exp
 After calculation/persistence, return directly in chat:
 
 - `quotation_id`
-- pricing canvas/review packet path when created
+- canonical pricing deep link
+- `pricing-input.json`, `pricing-output-calculated.json`, `pricing-output-approved.json`, and `pricing-validation.json` paths when created
 - approval source for final pricing variables
 - number of priced items
 - `total_amount`
@@ -213,10 +257,14 @@ Do not include `potential_profit` or `total_profit` in generated customer-facing
 Before finalizing:
 
 - Confirm every priced row has `bidder_unit_price` and `qty`.
-- Confirm the user approved the pricing canvas/review packet, exported JSON, or direct chat pricing variables before persistence.
+- Confirm the web-app pricing view was populated from a `$quoteflow-neon` sourced `rfq_items` array, joined to supplier/pricing rows where available.
+- Confirm every `rfq_items` row is represented in the pricing review or listed as skipped with a reason.
+- Confirm the user approved web-app pricing or direct chat pricing variables before persistence.
+- Confirm `pricing-output-approved.json` exists and is non-empty before persistence.
+- Confirm the browser-calculated JSON was verified by `pricing-calculator.ps1` or an equivalent deterministic formula before persistence.
+- Confirm `pricing-validation.json` exists and records the deterministic verification result before Neon writes.
 - Confirm all null pricing variables used documented defaults.
 - Confirm `sales_unit_price`, `ext_price`, and `potential_profit` are numeric.
 - Confirm `total_amount` equals `roundPrice(sum(ext_price))`.
 - Re-read updated rows through `$quoteflow-neon` when persistence is performed.
 - Report any skipped item and why.
-

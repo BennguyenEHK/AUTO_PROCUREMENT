@@ -1,13 +1,17 @@
 ---
 name: rfq-analysis
-description: Analyze industrial procurement RFQs from Gmail email subjects for the AUTOMATE_PROCUREMENT / QuoteFlow AI workflow. Use when the user asks to analyze, check, run, or process an RFQ email by subject, including prompts such as "Analyze RFQ email subject RFQ 123", "Analyze the Gmail RFQ with subject LDVA-INS-022", "Run RFQ analysis for email subject PRD-26-10090", or references to the rfq_analysis workflow. Orchestrate Gmail lookup, email normalization, attachment parsing, existing incoming_emails and rfq_analysis persistence, model-routing-policy guided Abacus AI RFQ summary, local PowerShell item_extract tool, per-item functional summaries, and a concise procurement report.
+description: Analyze industrial procurement RFQs from Gmail email subjects for the AUTOMATE_PROCUREMENT / QuoteFlow AI workflow. Use when the user asks to analyze, check, run, or process an RFQ email by subject, including prompts such as "Analyze RFQ email subject RFQ 123", "Analyze the Gmail RFQ with subject LDVA-INS-022", "Run RFQ analysis for email subject PRD-26-10090", or references to the rfq_analysis workflow. Orchestrate Gmail lookup, email normalization, attachment parsing, existing incoming_emails and rfq_analysis persistence, model-routing-policy guided Abacus AI RFQ summary, canonical TypeScript item extractor, per-item functional summaries, and a concise procurement report.
 ---
 
 # RFQ Analysis
 
 ## Purpose
 
-Use this skill to turn one Gmail RFQ email subject into a traceable, concise procurement analysis. Treat this as an orchestration skill: reuse existing Gmail, PDF, document, spreadsheet, image, the built-in Neon Postgres plugin, Abacus AI, and the skill-bundled PowerShell `tools/item_extract.ps1` implementation.
+Use this skill to turn one Gmail RFQ email subject into a traceable, concise procurement analysis. Treat this as an orchestration skill: reuse existing Gmail, PDF, document, spreadsheet, image, the built-in Neon Postgres plugin, Abacus AI, and the canonical TypeScript item extractor at `C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts`.
+
+## Web App Navigation
+
+For normal RFQ analysis review, return `http://localhost:3000/?view=documents&tab=technical&rfqId=<id>`. Do not generate or open a standalone RFQ analysis HTML report unless the customer explicitly requires that artifact; verify any required standalone path before returning it.
 
 Required input: `rfq_email_subject`.
 
@@ -17,9 +21,9 @@ Optional inputs: `company_id`, `user_id`, `force_reprocess` with default `false`
 
 - Stage: `rfq_analysis`
 - Previous stage: `new` or no persisted RFQ stage.
-- Next stage: `tender_document_intake` when tender files/forms need deeper intake, otherwise `supplier_search`.
+- Next stage: `rfq_analysis_review` for user validation. `tender_document_intake` may follow when tender files/forms need deeper intake. `supplier_search` must not be selected directly by default.
 - Stage owner: `bid-package-orchestrator`.
-- State persistence: after successful analysis and RFQ/item persistence, use `quoteflow-neon` to update stage fields when the target RFQ row is clear. On success, append this stage to `completed_stages`, set `current_stage` to the orchestrator-selected next stage, set `stage_status` to `ready_for_next_stage` or `in_progress`, clear/refresh `stage_blockers`, and write `next_required_action`. On block, do not advance `current_stage`; set `stage_status = blocked`, populate `stage_blockers`, and set `next_required_action` to the unblock action.
+- State persistence: after successful analysis, customer/item persistence, and readable RFQ Analysis Report generation, use `quoteflow-neon` to update stage fields when the target RFQ row is clear. On success, append this stage to `completed_stages`, set `current_stage = rfq_analysis_review`, set `stage_status = pending_user_validation` when available or `needs_review` when that is the supported status, set `stage_blockers = user_validation_pending`, and set `next_required_action = user must review RFQ Analysis Report and approve/proceed to supplier search`. On block, do not advance `current_stage`; set `stage_status = blocked`, populate `stage_blockers`, and set `next_required_action` to the unblock action.
 - Boundary: this skill extracts and analyzes RFQ intake. It should not perform supplier search, pricing, final offer selection, bid form generation, or final packaging.
 ## Before Running
 
@@ -27,7 +31,7 @@ Before implementing or executing project writes:
 
 - Read `AGENTS.md` and any project-local skill routing.
 - Use the built-in Neon Postgres plugin as the primary source for live database schema, table existence, and persistence. Do not depend on local schema files or migrations when Neon is available.
-- Locate existing Gmail usage, attachment download helpers, Abacus AI client/model routing, JSON repair utilities, and the skill-bundled item extraction tool at `C:\Users\LENOVO\.codex\skills\rfq-analysis\tools\item_extract.ps1`.
+- Locate existing Gmail usage, attachment download helpers, Abacus AI client/model routing, JSON repair utilities, and the canonical item extraction tool at `C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts`.
 - Reuse existing code paths and schemas. Do not create duplicate tables, storage systems, Abacus clients, or item extractors.
 - If an expected component is absent, continue with the available pieces and clearly report the limitation.
 
@@ -72,11 +76,14 @@ Inspect the live table schema before writing:
 - `incoming_emails`
 - `rfq_analysis`
 - `rfq_items`
+- `customers`
 - `user_company` when `company_id` resolution is needed
 
 Use `describe_table_schema` or equivalent Neon schema tools as the source of truth. Current known Neon project details from a successful test: project `quoteflow_ai`, project id `wandering-bar-14365580`, main branch id `br-soft-smoke-ahc5mcj6`, database `neondb`. Treat these as hints, not hardcoded requirements.
 
 For `incoming_emails`, map only to real columns. In the tested Neon schema these include `message_id`, `from_email`, `from_name`, `to_recipients`, `cc_recipients`, `subject`, `email_body_text`, `attachments_parsed`, `classification_type`, `classification_confidence`, `rfq_id`, `user_id`, `company_id`, `received_at`, `processed_at`, and `created_at`.
+
+For `customers`, map only to real columns after inspecting the live schema. In the tested Neon schema these include `rfq_id`, `customer_id`, `company_name`, `customer_address`, `phone`, `fax_number`, `attention_person`, `carbon_copy_person`, `email`, `company_id`, and `user_id`. Customer data must be extracted during RFQ intake and upserted or inserted for the same `rfq_id`, `company_id`, and `user_id` when the table exists.
 
 Avoid duplicate records using the live unique constraint on `incoming_emails.message_id` when present. If no unique key exists, use a deterministic identity from Gmail message/thread id, subject, sender, date, and body hash consistent with the database schema.
 
@@ -145,6 +152,15 @@ Output schema:
     "analysis_content": "Summary: what client wants, key requirements, deadlines, closing_time, clarification needed",
     "analysis_status": "completed",
     "special_requirements": {
+      "certificates_compliance": [],
+      "submission_proposal": [],
+      "signature_authorization": [],
+      "delivery": [],
+      "commercial_terms": [],
+      "technical_standards_inspection": [],
+      "documentation": [],
+      "coo_origin": [],
+      "manufacturer_authorization": [],
       "commercial": [],
       "technical": [],
       "submission": [],
@@ -170,7 +186,17 @@ Rules:
 - rfq_analysis.subject: concise title for this RFQ.
 - rfq_analysis.analysis_content: summarize scope, key requirements, deadlines, compliance notes, anything needing clarification, added <br> tags to separate the distinct sections for better readability.
 - rfq_analysis.analysis_status: always "completed".
-- rfq_analysis.special_requirements: source-supported RFQ-level commercial, technical, submission, and compliance requirements outside ordinary item description and quantity.
+- rfq_analysis.special_requirements: source-supported RFQ-level requirements outside ordinary item description and quantity. Extract from the merged email body, thread context, parsed attachments, technical specifications, and PDF/source references. Return clean grouped arrays whenever present:
+  - certificates_compliance: CO, CQ, certificate of compliance, manufacturer certificates, calibration/test certificates, conformity certificates, and certificate standards.
+  - submission_proposal: inquiry number, PR number, RFQ number, required proposal wording, proposal format, bid forms, technical/commercial separation, submission instructions, and required references to include in the offer.
+  - signature_authorization: authorized signature, company stamp/seal, authorized signatory, manufacturer/OEM/distributor authorization.
+  - delivery: shortest possible delivery, required delivery date, delivery location, lead-time instruction, delivery deadline when separate from quotation closing.
+  - commercial_terms: Incoterms, currency, validity, payment terms, taxes, warranty, freight, bid bonds, commercial conditions.
+  - technical_standards_inspection: standards, inspection, testing, datasheet/spec compliance, material/test requirements outside normal item description.
+  - documentation: datasheets, drawings, manuals, MTR, QA/QC documents, shipping documents, invoice backup, other document packs.
+  - coo_origin: country-of-origin declarations or origin restrictions.
+  - manufacturer_authorization: explicit manufacturer/OEM/distributor authorization requirements when not already captured under signature_authorization.
+  Keep commercial, technical, submission, and compliance buckets as broader compatibility groupings when useful. If a requirement is broad or vague, preserve the wording and also add a clarification.
 - rfq_analysis.required_documents: source-supported certificates, bid forms, commercial/technical proposal files, shipping data, invoice backup, manufacturer documents, and other RFQ document requirements.
 - rfq_analysis.clarifications: source-supported gaps, conflicts, unreadable specifications, visual/PDF ambiguities, and missing information. Use [] when none are identified.
 - For the three structured persistence fields, use exactly these JSON keys: `special_requirements`, `required_documents`, and `clarifications`. Do not use misspelled or singular variants such as `special_requirement`, `required_document`, or `clarification`.
@@ -185,17 +211,22 @@ Validate JSON before using it. Required: top-level `rfq_analysis`, `rfq_analysis
 
 ### 8. Extract And Analyze Items
 
-Call the skill-bundled PowerShell item extraction tool at `C:\Users\LENOVO\.codex\skills\rfq-analysis\tools\item_extract.ps1` after confirming it exists. This is the `tools/item_extract.ps1` path relative to this skill folder. The tool contains only the deterministic RFQ item extraction logic originally isolated from `lib/utils/rfq-extractor.ts`: `ExtractedItem`, `extractRfqItems`, pipe-delimited row extraction, and the table state machine. Do not call the full `extractAll()` orchestrator for item-only extraction.
+Call the canonical TypeScript item extraction tool at `C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts` after confirming it exists. It contains only deterministic RFQ item extraction: `ExtractedItem`, `extractRfqItems`, pipe-delimited row extraction, and the table state machine. Do not call the full `extractAll()` orchestrator for item-only extraction.
 
 Pass one JSON object with this input contract through stdin. Use `-InputJson` only for short/simple text because long RFQ bodies are safer through stdin:
 
 ```json
 {
-  "email_body_content": "normalized RFQ email body or strongest item-source text"
+  "email_body_content": "normalized RFQ email body or strongest item-source text",
+  "from_email": "sender@example.com",
+  "from_name": "Sender Name",
+  "cc": ["cc@example.com"],
+  "attachment_text": "best-ranked attachment text for contact fields",
+  "user_full_name": "logged-in user full name when known"
 }
 ```
 
-For the first implementation, provide `normalized_email_body` as `email_body_content`. If parsed attachment item sections are later proven stronger, merge them into the string before calling the tool, but keep the field name `email_body_content` so the tool contract remains stable.
+For the first implementation, provide `normalized_email_body` as `email_body_content`. If parsed attachment item sections are later proven stronger, merge them into the string before calling the tool, but keep the field name `email_body_content` so the tool contract remains stable. Provide Gmail sender/CC metadata and the best-ranked attachment text whenever available so the tool can return deterministic customer contact fields.
 
 The tool must return this output contract:
 
@@ -219,7 +250,14 @@ The tool must return this output contract:
         "uom": "EA"
       }
     }
-  ]
+  ],
+  "customer_partial": {
+    "email": "sender@example.com",
+    "attention_person": "Customer contact person",
+    "carbon_copy_person": ["CC contact"],
+    "phone": "phone number",
+    "fax_number": "fax number"
+  }
 }
 ```
 
@@ -236,15 +274,24 @@ On failure or invalid input, the tool must return:
 
 Use `rfq_items` as the downstream item array for persistence and item functional summary. Use `items` only when the raw extractor shape is needed for validation or debugging. Preserve manufacturer names, model numbers, part numbers, SKUs, stock numbers, and product codes verbatim from `company_description`.
 
+Use `customer_partial` as the deterministic customer contact extraction output. Merge it with the validated Abacus `customer_partial.company_name` and `customer_partial.customer_address` values before writing the `customers` table. Do not let Abacus overwrite deterministic email, attention, CC, phone, or fax values unless the deterministic value is empty and the replacement is source-supported.
+
 Example call from the AUTOP_PROCUREMENT workspace:
 
 ```powershell
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [Console]::OutputEncoding = $utf8NoBom
 $OutputEncoding = $utf8NoBom
-$payload = @{ email_body_content = $normalized_email_body } | ConvertTo-Json -Compress
-$extractTool = 'C:\Users\LENOVO\.codex\skills\rfq-analysis\tools\item_extract.ps1'
-$payload | powershell -NoProfile -ExecutionPolicy Bypass -File $extractTool
+$payload = @{
+  email_body_content = $normalized_email_body
+  from_email = $from_email
+  from_name = $from_name
+  cc = $cc_recipients
+  attachment_text = $best_attachment_text
+  user_full_name = $user_full_name
+} | ConvertTo-Json -Compress
+$extractTool = 'C:\Users\LENOVO\.codex\skills\quoteflow-webapp\tools\item-extract.ts'
+$payload | node --import tsx $extractTool
 ```
 
 Merge complementary item information without duplicating the same line item. Preserve the project item schema and retain item id/line number, description, quantity, unit, explicit manufacturer, explicit model/part/SKU, and source.
@@ -259,7 +306,7 @@ Base statements only on the item description and RFQ context.
 Use [] for unknown axes and add no extra fields.
 ```
 
-Validate that the analyzed item count equals the extracted item count and every input `item_id` appears exactly once. Retry or repair according to project conventions if validation fails. If `item_extract` fails, do not fabricate items; report that RFQ items could not be reliably extracted.
+Validate that the analyzed item count equals the extracted item count and every input `item_id` appears exactly once. Retry or repair according to project conventions if validation fails. If item extraction fails, do not fabricate items; report that RFQ items could not be reliably extracted.
 
 ### 9. Determine Required RFQ Answers
 
@@ -269,15 +316,46 @@ Always answer:
 - Each item: concise identification, purpose/application, and key features from extracted and analyzed item data.
 - Special/further requirements: only source-supported requirements outside basic item description and quantity, such as COO/origin restrictions, certificates, standards, inspection, documentation, manufacturer authorization, Incoterms, currency, quotation validity, payment terms, bid bonds, and technical/commercial bid forms.
 
-### 10. Persist RFQ Analysis
+For `Special / Further Requirements`, do not compress unrelated requirements into one paragraph. Present a clean grouped format and include every group that is source-supported by the email body, parsed PDF/technical specification attachments, or other extracted tender documents:
+
+- `Certificates / Compliance`: CO, CQ, certificate of compliance, manufacturer certificates, test/calibration certificates, conformity certificates, certificate standards.
+- `Submission / Proposal`: inquiry number, PR number, RFQ number, proposal format, required text/references, bid forms, technical/commercial separation, submission channel or instructions.
+- `Signature / Authorization`: authorized signature, stamp/seal, authorized signatory, manufacturer/OEM/distributor authorization.
+- `Delivery`: shortest possible delivery, delivery deadline, delivery location, lead time, shipping/delivery instruction.
+- `Commercial Terms`: Incoterms, currency, validity, payment terms, warranty, taxes, freight, bid bonds, commercial conditions.
+- `Technical Standards / Inspection`: standards, inspections, tests, technical/spec compliance, material/test requirements outside normal item descriptions.
+- `Documentation`: datasheets, drawings, manuals, MTR, QA/QC documents, shipping documents, invoice backup, document packages.
+- `COO / Origin`: country-of-origin requirements, origin restrictions, origin declarations.
+- `Clarification`: broad, vague, conflicting, missing, or unreadable requirement details; for example, "other applicable manufacturer certificates" when no exact certificate list is defined.
+
+When a group has no source-supported values, omit that group from the readable report or state `Not identified` only when the absence is important. Do not invent missing requirements.
+
+### 10. Build Readable RFQ Analysis Report
+
+Before final persistence is considered complete, show a readable RFQ Analysis Report in the canonical technical deep link. This is the user-validation artifact required by `bid-package-orchestrator` before supplier search. Generate a local HTML report only when the customer explicitly requires it.
+
+The report must include:
+
+- RFQ reference or concise title.
+- Deadline finding.
+- RFQ requirement summary.
+- Special/further requirements in clean grouped sections: Certificates / Compliance, Submission / Proposal, Signature / Authorization, Delivery, Commercial Terms, Technical Standards / Inspection, Documentation, COO / Origin, and Clarification when applicable.
+- Extracted item table with quantity, unit, identification, purpose/application, and key features.
+- Clarifications, missing information, unsupported attachments, or material parsing limits.
+
+Return the canonical technical deep link in the stage handoff. If the web app is unavailable, show the same report in chat; do not create a standalone report unless the customer explicitly requires one. Do not proceed to supplier search from this skill.
+
+### 11. Persist RFQ Analysis
 
 Use `$quoteflow-neon` and the built-in Neon Postgres plugin with existing `rfq_analysis` / `rfq_items` tables. Inspect the real schema first with Neon tools. Known tested columns for `rfq_analysis` include `rfq_id`, `company_id`, `user_id`, `rfq_reference`, `subject`, `analysis_content`, `analysis_status`, `created_at`, `updated_at`, `required_currency`, `deadline_period`, `closing_time`, `current_stage`, `unread_count`, `last_preview_type`, and, when the main schema has been migrated, `special_requirements`, `required_documents`, and `clarifications`.
 
 Known tested columns for `rfq_items` include `id`, `company_id`, `rfq_id`, `user_id`, `company_description`, `qty`, `uom`, `created_at`, `item_id`, and `agent_item_summary`. The tested schema has a unique constraint on `(rfq_id, item_id)`, so use upsert/update behavior for repeated item processing when possible.
 
+Known tested columns for `customers` include `rfq_id`, `customer_id`, `company_name`, `customer_address`, `phone`, `fax_number`, `attention_person`, `carbon_copy_person`, `email`, `company_id`, and `user_id`. After the target RFQ row exists, merge customer fields from the deterministic item tool output and the validated Abacus output, then persist the customer row for the same `rfq_id`, `company_id`, and `user_id`. Use scoped upsert/update behavior when a customer row already exists for the RFQ. If the table or a needed column is missing, report the schema gap; do not silently omit customer persistence.
+
 Map validated Abacus output and extracted deadline/currency fields to actual columns. When the live `rfq_analysis` schema includes the structured JSONB columns, persist RFQ-level buckets as follows:
 
-- `special_requirements`: source-supported commercial, technical, submission, and compliance requirements outside basic item description and quantity.
+- `special_requirements`: source-supported requirements outside basic item description and quantity, preserving the clean grouped buckets when present: `certificates_compliance`, `submission_proposal`, `signature_authorization`, `delivery`, `commercial_terms`, `technical_standards_inspection`, `documentation`, `coo_origin`, `manufacturer_authorization`, plus broader `commercial`, `technical`, `submission`, and `compliance` buckets when useful for compatibility.
 - `required_documents`: CO, CQ, certificates of compliance, manufacturer certificates, bid forms, proposal files, shipping data, invoice backup, and other required supporting documents.
 - `clarifications`: missing information, source conflicts, unreadable specs, unsupported attachments, visual/PDF ambiguities, and blocking procurement questions.
 
@@ -289,6 +367,15 @@ If a needed table or column is missing, use Neon schema tools to verify the gap.
 
 If the database write fails, do not claim the RFQ was saved. Show the analysis if available and report the persistence failure according to project conventions.
 
+After `rfq_analysis`, `rfq_items`, and `customers` persistence succeeds where the live schema supports them, persist the workflow review gate state:
+
+- `current_stage = rfq_analysis_review`
+- `stage_status = pending_user_validation` when supported, otherwise `needs_review`
+- `stage_blockers = user_validation_pending`
+- `next_required_action = user must review RFQ Analysis Report and approve/proceed to supplier search`
+- `completed_stages` includes `rfq_analysis`
+
+If the user explicitly requested `skip`, `auto-run`, `bypass validation`, or `test mode`, this skill may record the bypass instruction for the orchestrator, but it still must produce the readable RFQ Analysis Report and must not itself call supplier search. Approval/bypass advancement is owned by `bid-package-orchestrator`.
 
 ## Email Drafting Handoff
 
@@ -297,6 +384,8 @@ If the RFQ analysis leads to an acknowledgement, customer clarification request,
 ## Final User Output
 
 Keep the final answer short, precise, and procurement-focused. Do not expose raw Gmail JSON, raw Abacus JSON, full parsed PDF text, internal IDs, database queries, attachment hashes, routing logs, or token details.
+
+The final answer must be readable as the RFQ Analysis Report for user validation. End with the validation status: supplier search is paused until the user approves/proceeds, unless the user explicitly requested a test-mode skip/auto-run bypass.
 
 Use this format:
 
@@ -310,7 +399,32 @@ RFQ Requirement
 <2-5 sentence concise summary>
 
 Special / Further Requirements
-<concise special requirements, or "No additional special requirements identified">
+Certificates / Compliance
+<source-supported certificate/compliance requirements, or omit if not identified>
+
+Submission / Proposal
+<source-supported inquiry number, PR/RFQ reference, proposal format, forms, submission instructions, or omit if not identified>
+
+Signature / Authorization
+<source-supported signature, stamp/seal, signatory, OEM/manufacturer authorization requirements, or omit if not identified>
+
+Delivery
+<source-supported delivery deadline/location/shortest-delivery/lead-time instructions, or omit if not identified>
+
+Commercial Terms
+<source-supported Incoterms, currency, validity, payment, warranty, tax, freight, bid bond, commercial conditions, or omit if not identified>
+
+Technical Standards / Inspection
+<source-supported standards, inspections, testing, technical/spec compliance requirements, or omit if not identified>
+
+Documentation
+<source-supported datasheets, drawings, manuals, QA/QC, MTR, shipping documents, invoice backup, document packages, or omit if not identified>
+
+COO / Origin
+<source-supported country-of-origin requirements or origin restrictions, or omit if not identified>
+
+Clarification
+<broad, vague, conflicting, missing, or unreadable requirement details, or omit if none>
 
 Extracted Items
 
@@ -320,6 +434,9 @@ Extracted Items
 
 Clarification Required
 <show only for real ambiguity, conflict, unreadable specification, missing critical information, unsupported material attachment, or failed attachment analysis>
+
+Validation Status
+Pending user validation before supplier search. Reply approved/proceed to supplier search to continue.
 ```
 
 ## Failure Rules
@@ -329,12 +446,11 @@ Clarification Required
 - Attachment download failure: continue from email body when possible and state what could not be analyzed.
 - PDF parse failure: do not invent content; try scanned/visual analysis where available.
 - Abacus failure: use configured retry/error handling and do not persist malformed output.
-- `item_extract` failure: return RFQ-level report and state that items could not be reliably extracted.
+- item extraction failure: return RFQ-level report and state that items could not be reliably extracted.
 - Database failure: do not say the RFQ was saved.
+- Missing readable report: do not mark the stage as ready for review until the RFQ Analysis Report has been created or shown in chat.
+- Supplier search request: do not run supplier search from this skill; hand control back to `bid-package-orchestrator` for approval handling and stage advancement.
 
 ## Context Discipline
 
 Search narrowly, parse locally first, cache by attachment hash, deduplicate forwarded content, send compact context to models, batch item analysis when supported, persist reusable facts, and preserve source provenance for rechecking.
-
-
-

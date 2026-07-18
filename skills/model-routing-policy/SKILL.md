@@ -29,6 +29,23 @@ Never use a model route to bypass:
 - selected-offer freeze;
 - final QA.
 
+## OpenAI GPT Switch Defaults
+
+When the active orchestration surface supports GPT model and reasoning-effort selection, use these defaults to save tokens while preserving procurement accuracy:
+
+| Work type | Recommended model | Reasoning effort |
+| --- | --- | --- |
+| Routine bid-package orchestration, stage checks, report-link checks | `gpt-5.6-terra` | `low` |
+| Scheduled-task checks, cleanup manifests, simple fetch/status summaries | `gpt-5.6-luna` | `low` |
+| RFQ analysis, tender intake, supplier quote normalization, ordinary certificate/origin review | `gpt-5.6-terra` | `medium` |
+| Supplier-search public/redacted discovery dispatch | `gpt-5.6-luna` or `gpt-5.6-terra` | `low` |
+| Technical compliance, selected-offer decisions, pricing risk, final submission QA | `gpt-5.6-sol` | `medium` or `high` |
+| Serious unresolved blocker, safety/compliance ambiguity, or high-value final-submission conflict | `gpt-5.6-sol` | `xhigh` only when clearly justified |
+
+Default to `gpt-5.6-terra` with `low` reasoning for the main orchestrator when the workflow is mostly routing, reading, writing, or producing status. Escalate the model or reasoning level only for the specific affected stage, then return to the lighter default.
+
+Do not use `xhigh`, `max`, or pro/deep modes for routine RFQ processing, report generation, scheduled checks, cleanup, or simple database persistence.
+
 ## Privacy Gate
 
 Before sending content to `$chatllm-call` or any external model, classify the payload:
@@ -126,5 +143,4 @@ Verifier: <main Codex | user | stage skill>
 ```
 
 Do not expose token calculations unless the user asks.
-
 

@@ -1,0 +1,17 @@
+# Customer-specific credentials and local identity state
+.env
+.env.local
+.env.*.local
+**/chatllm.env
+**/SIGNUP.json
+
+# Generated dependency, build, and report output
+**/node_modules/
+**/.next/
+**/output/
+**/cleanup-manifest/
+*.log
+
+# Local tool and operating-system files
+.DS_Store
+Thumbs.db

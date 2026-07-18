@@ -4,15 +4,23 @@ description: Compare customer technical requirements against supplier or selecte
 ---
 
 # Technical Compliance Review
-## Local Artifact Links
+## Web App Navigation
 
-When returning local artifacts, resolve the actual absolute Windows path; use Windows links (and browser-safe `file:///C:/...` for HTML), never `/mnt/c/...` or `C:/mnt/c/...`.
+For normal workflow review, use `http://localhost:3000/?view=documents&tab=technical&rfqId=<id>`. Do not generate, save, or open a standalone HTML compliance report for normal workflow use.
+
+For interim or blocked compliance, return the evidence packet, comparison result, numerical proof, deviations, persistence status, blockers, and next action in chat. Do not return a final-report link. Create a standalone artifact only when the customer explicitly requires one, and verify its exact path before returning it.
+
+When editing this `SKILL.md` or technical-compliance Markdown/control files, preserve UTF-8 without BOM and verify no BOM after edits when practical.
 
 ## Purpose
 
 Act as technical bid reviewer. Compare requirement vs offer field by field, classify differences accurately, and protect end-user safety and bidder position.
 
 This skill owns the technical judgment question: "Does the customer requirement and supplier response actually match, with defensible evidence, calculations, visual proof for numerical comparisons, and risk classification?" It does not own email watching, workflow stage routing, selected-offer freeze, or final package release.
+
+## Final Report Readiness Gate
+
+Return `http://localhost:3000/?view=documents&tab=technical&rfqId=<id>` only when every RFQ item has evidence-backed compliance or a documented insufficient-evidence conclusion. Until then, return chat evidence only and no final link.
 
 Never hide confirmed deviations. Do not overstate coding differences, legacy/current model changes, regional configurations, or documentation gaps as functional non-compliance without evidence.
 
@@ -28,6 +36,10 @@ Never hide confirmed deviations. Do not overstate coding differences, legacy/cur
 
 Use this mode when `bid-package-orchestrator` routes a new customer/supplier/OEM/manufacturer/distributor response for technical review.
 
+Do not run this mode as part of a blind three-skill bundle. For supplier replies with a revised offer, require a structured `supplier-quotation-normalizer` handoff first unless the reply is purely technical and contains no changed price, quantity, UOM, lead time, validity, Incoterm, warranty, exclusion, or quote revision. For customer replies, require the latest customer baseline from `rfq-analysis` or `tender-document-intake` before deciding compliance.
+
+Run only for affected technical fields: offered manufacturer/model/P/N/description, datasheet or drawing details, technical alternatives, quantity/UOM where it affects technical suitability, fit/form/function/application, standards, hazardous-area/process compatibility, technical certificates, or prior technical conclusions. If the reply affects only certificate/origin or commercial terms, state that technical review was intentionally skipped and let the owning skill handle it.
+
 1. Load the new response and identify whether it changes a customer requirement, supplier offer, technical clarification, deviation, alternative, datasheet, drawing, certificate-related technical requirement, or selected-offer assumption.
 2. Load the opposite-side baseline:
    - for customer replies, load current supplier offers, selected offers, previous supplier technical clarifications, and prior compliance matrices;
@@ -35,6 +47,7 @@ Use this mode when `bid-package-orchestrator` routes a new customer/supplier/OEM
 3. Compare the changed response against the latest opposite-side baseline and previous compliance conclusion. Mark whether the previous conclusion remains valid, must be revised, or is blocked pending clarification.
 4. Produce a clear `YES`, `NO`, or `BLOCKED/INSUFFICIENT EVIDENCE` technical answer for each affected item and field. Do not give a yes/no answer without source evidence.
 5. Preserve both sides when sources conflict, rank source authority, and state what must be clarified before bid continuation.
+6. Produce a `Technical Compliance Impact` section for the combined Response Impact Report, including affected items/fields, prior conclusion, revised conclusion, evidence packet, numerical proof appendix references when applicable, blockers, and next action.
 
 ## Evidence, Calculations, And Graph Proof
 
@@ -117,6 +130,7 @@ Persist final technical review results through `quoteflow-neon` before advancing
 
 - Requirement vs Offered Comparison Matrix.
 - Response Impact Technical Review Matrix for new customer/supplier/OEM/manufacturer/distributor replies.
+- Technical Compliance Impact section for combined Response Impact Reports.
 - Evidence packet per material conclusion.
 - Numerical Calculation and Graph/Table Proof Appendix when numerical technical values affect compliance.
 - Technical compliance status per item and field.
@@ -126,6 +140,7 @@ Persist final technical review results through `quoteflow-neon` before advancing
 - Final technical risk summary.
 - Handoff notes for Form 1, Form 2, unpriced schedule, and technical attachments.
 - Persistence status, including `technical_compliance_reviews` record references and any `supplier_item_status` rows updated.
+- Canonical QuoteFlow technical deep link when ready, or a verified customer-required standalone artifact path when explicitly requested.
 
 ## Failure Rules
 
@@ -137,5 +152,5 @@ Persist final technical review results through `quoteflow-neon` before advancing
 - If customer and supplier sources conflict, preserve both and rank source authority.
 - If a material numerical comparison is required, do not omit the calculation method or graph/table proof.
 - Do not mark technical compliance complete if the review rows could not be persisted and no database blocker was recorded.
+- Do not proceed from a supplier revised-offer reply when the quote has not first been normalized or blocked by `supplier-quotation-normalizer`, unless the orchestrator confirms the reply is purely technical.
 - Do not create final bid folders; hand off to bid form generation and packaging.
-

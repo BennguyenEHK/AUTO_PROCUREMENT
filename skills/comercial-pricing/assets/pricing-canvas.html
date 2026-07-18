@@ -6,97 +6,527 @@
   <title>Comercial Pricing Canvas</title>
   <style>
     :root {
-      --bg: #f5f6f8;
+      --bg: #eef2f6;
       --panel: #ffffff;
+      --panel-2: #f8fafc;
       --ink: #172033;
-      --muted: #667085;
-      --line: #d7dde7;
+      --muted: #607086;
+      --line: #d6dde8;
       --accent: #0f766e;
-      --soft: #e7f3f1;
-      --warn: #9a3412;
-      --warn-soft: #fff4e6;
+      --accent-2: #155e75;
+      --danger: #b42318;
+      --warn: #a15c07;
+      --good: #166534;
+      --focus: #2dd4bf;
+      --shadow: 0 12px 30px rgba(23, 32, 51, .08);
     }
+
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 Arial, Helvetica, sans-serif; }
-    header { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 18px; }
-    h1 { margin: 0 0 8px; font-size: 21px; }
-    .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; padding: 8px 11px; cursor: pointer; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 13px/1.45 "Segoe UI", Arial, Helvetica, sans-serif;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 6px 18px rgba(23, 32, 51, .05);
+    }
+
+    .mast {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 14px 18px;
+    }
+
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 21px; letter-spacing: 0; }
+    h2 { font-size: 15px; }
+    h3 { font-size: 14px; }
+
+    .meta {
+      display: flex;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    button {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      padding: 8px 11px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
     button.secondary { background: #fff; color: var(--accent); }
-    input, textarea { border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; font: inherit; }
-    input[type="number"] { width: 96px; }
-    main { padding: 18px; max-width: 1500px; margin: 0 auto; }
-    .grid { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 16px; align-items: start; }
-    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-    textarea { width: 100%; min-height: 280px; font: 12px/1.4 Consolas, monospace; }
-    .bulk { display: grid; grid-template-columns: repeat(5, minmax(85px, 1fr)); gap: 8px; margin: 10px 0; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; text-align: left; }
-    th { position: sticky; top: 79px; background: #f9fafb; z-index: 5; font-size: 12px; color: var(--muted); }
-    .num { text-align: right; white-space: nowrap; }
-    .desc { min-width: 260px; }
-    .badge { display: inline-block; background: var(--soft); color: var(--accent); border-radius: 999px; padding: 2px 7px; font-weight: 700; }
-    .warn { background: var(--warn-soft); color: var(--warn); padding: 8px 10px; border-radius: 6px; margin-top: 10px; }
-    .totals { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
-    .total { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 180px; }
-    .total strong { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } th { position: static; } }
+    button.neutral { border-color: var(--line); background: #fff; color: var(--ink); }
+    button:focus, input:focus, textarea:focus {
+      outline: 3px solid rgba(45, 212, 191, .32);
+      outline-offset: 1px;
+    }
+
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 16px 18px 20px;
+    }
+
+    .control-strip {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.15fr) minmax(520px, 2fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-pad { padding: 12px; }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      accent-color: var(--accent);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font: 12px/1.45 Consolas, "Courier New", monospace;
+    }
+
+    .search-box {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bulk-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(92px, 1fr)) auto auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .bulk-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      grid-column: span 2;
+    }
+
+    .board-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .board-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      background: #fbfcfe;
+    }
+
+    .board-scroll {
+      max-height: min(58vh, 620px);
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .item-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(390px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .item-card {
+      display: grid;
+      grid-template-rows: auto auto auto;
+      min-height: 318px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .item-card.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+    .item-top {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 9px;
+      align-items: start;
+      padding: 10px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .item-id {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      height: 28px;
+      border-radius: 6px;
+      background: #e6f5f2;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .desc {
+      min-width: 0;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .sub {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .status {
+      border-radius: 999px;
+      padding: 3px 7px;
+      background: #eef2f7;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status.warn { background: #fff7ed; color: var(--warn); }
+    .status.good { background: #ecfdf3; color: var(--good); }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .fact {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px;
+      min-width: 0;
+    }
+
+    .fact strong {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .fact span { font-weight: 750; overflow-wrap: anywhere; }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 7px;
+      padding: 10px;
+    }
+
+    .pricing-grid input { text-align: right; }
+
+    .result-line {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding: 0 10px 10px;
+    }
+
+    .result {
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      padding: 7px;
+      background: #ffffff;
+    }
+
+    .result strong {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .result span {
+      display: block;
+      text-align: right;
+      font-weight: 800;
+      color: var(--accent-2);
+    }
+
+    .result-board {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .total {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .total strong {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .total span { font-size: 18px; font-weight: 800; color: var(--ink); }
+    .total.internal span { color: var(--warn); }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+      align-items: start;
+    }
+
+    .json-panel textarea { min-height: 170px; }
+    .warnings {
+      margin-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .warning {
+      border-left: 4px solid var(--warn);
+      background: #fff7ed;
+      color: #7c2d12;
+      padding: 8px 9px;
+      border-radius: 6px;
+    }
+
+    .empty {
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    @media (max-width: 1100px) {
+      .control-strip, .action-row { grid-template-columns: 1fr; }
+      .bulk-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .bulk-actions { grid-column: 1 / -1; justify-content: flex-start; }
+      .result-board { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .mast { grid-template-columns: 1fr; }
+      .toolbar { justify-content: flex-start; }
+      .item-board { grid-template-columns: 1fr; }
+      .pricing-grid, .facts, .result-line, .result-board { grid-template-columns: 1fr; }
+      .board-scroll { max-height: none; }
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>Comercial Pricing Canvas</h1>
-    <div class="bar">
-      <button id="loadBtn">Load JSON</button>
-      <button id="sampleBtn" class="secondary">Sample</button>
-      <button id="calcBtn">Calculate</button>
-      <button id="exportBtn" class="secondary">Export calculated JSON</button>
-      <input id="search" type="search" placeholder="Search item or supplier">
+    <div class="mast">
+      <div>
+        <h1>Comercial Pricing Canvas</h1>
+        <div class="meta">
+          <span><strong>RFQ:</strong> <span id="rfqMeta">Not loaded</span></span>
+          <span><strong>Quotation:</strong> <span id="quotationMeta">Not loaded</span></span>
+          <span><strong>Currency:</strong> <span id="currencyMeta">Mixed / not loaded</span></span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button id="loadBtn" type="button">Load JSON</button>
+        <button id="sampleBtn" class="secondary" type="button">Sample</button>
+      </div>
     </div>
   </header>
-  <main class="grid">
-    <section class="panel">
-      <h2>Input JSON</h2>
-      <textarea id="jsonInput" spellcheck="false"></textarea>
-      <h2>Bulk apply</h2>
-      <div class="bulk">
-        <input id="bulkShipping" type="number" step="0.01" placeholder="Shipping">
-        <input id="bulkTax" type="number" step="0.0001" placeholder="Tax 1.1">
-        <input id="bulkExchange" type="number" step="0.0001" placeholder="Exchange">
-        <input id="bulkProfit" type="number" step="0.0001" placeholder="Profit">
-        <input id="bulkDiscount" type="number" step="0.0001" placeholder="Discount">
+
+  <main>
+    <section class="control-strip">
+      <div class="panel panel-pad search-box">
+        <div>
+          <label for="search">Search item</label>
+          <input id="search" type="search" placeholder="Search item ID, description, supplier, currency">
+        </div>
+        <div>
+          <label for="jsonInput">QuoteFlow pricing JSON</label>
+          <textarea id="jsonInput" spellcheck="false" placeholder="Codex can paste the rfq_items pricing array JSON here before opening the canvas."></textarea>
+        </div>
       </div>
-      <button id="bulkBtn" class="secondary">Apply bulk values to visible rows</button>
-      <div id="warnings"></div>
+
+      <div class="panel panel-pad">
+        <h2>Bulk update pricing parameters</h2>
+        <div class="bulk-grid">
+          <div>
+            <label for="bulkShipping">Shipping cost</label>
+            <input id="bulkShipping" type="number" step="0.01" placeholder="0">
+          </div>
+          <div>
+            <label for="bulkTax">Tax rate</label>
+            <input id="bulkTax" type="number" step="0.0001" placeholder="1.1">
+          </div>
+          <div>
+            <label for="bulkExchange">Exchange rate</label>
+            <input id="bulkExchange" type="number" step="0.0001" placeholder="1">
+          </div>
+          <div>
+            <label for="bulkProfit">Profit rate</label>
+            <input id="bulkProfit" type="number" step="0.0001" placeholder="1.25">
+          </div>
+          <div>
+            <label for="bulkDiscount">Discount</label>
+            <input id="bulkDiscount" type="number" step="0.0001" placeholder="0">
+          </div>
+          <div class="bulk-actions">
+            <button id="applySelectedBtn" class="secondary" type="button">Apply selected</button>
+            <button id="applyAllBtn" type="button">Apply all</button>
+          </div>
+        </div>
+        <div class="meta">
+          <span><strong>Visible:</strong> <span id="visibleCount">0</span></span>
+          <span><strong>Selected:</strong> <span id="selectedCount">0</span></span>
+          <span><strong>Priced:</strong> <span id="pricedCount">0</span></span>
+        </div>
+        <div id="warnings" class="warnings"></div>
+      </div>
     </section>
-    <section>
-      <div class="totals">
-        <div class="total"><strong>Total amount</strong><span id="totalAmount">0</span></div>
-        <div class="total"><strong>Total profit</strong><span id="totalProfit">0</span></div>
-        <div class="total"><strong>Items</strong><span id="itemCount">0</span></div>
+
+    <section class="board-wrap">
+      <div class="board-head">
+        <h2>Quotation pricing items</h2>
+        <div class="meta">
+          <span>Each cell calculates live from bidder price, quantity, and item pricing parameters.</span>
+        </div>
       </div>
-      <div class="panel" style="overflow:auto; max-height: calc(100vh - 170px);">
-        <table>
-          <thead>
-            <tr>
-              <th>Use</th><th>Item</th><th class="desc">Description / supplier</th><th class="num">Bidder</th><th class="num">Qty</th><th class="num">Shipping</th><th class="num">Tax</th><th class="num">Exchange</th><th class="num">Profit</th><th class="num">Discount</th><th class="num">Sales unit</th><th class="num">Ext price</th><th class="num">Profit</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
+      <div class="board-scroll">
+        <div id="itemBoard" class="item-board"></div>
+      </div>
+    </section>
+
+    <section id="resultsBoard" class="result-board"></section>
+
+    <section class="action-row">
+      <div class="panel panel-pad">
+        <h2>Review actions</h2>
+        <div class="toolbar" style="justify-content:flex-start;margin-top:10px;">
+          <button id="calcBtn" type="button">Calculate</button>
+        </div>
+      </div>
+      <div class="panel panel-pad json-panel">
+        <h2>Calculated JSON output</h2>
+        <textarea id="jsonOutput" readonly spellcheck="false"></textarea>
+        <div class="toolbar" style="justify-content:flex-end;margin-top:10px;">
+          <button id="copyJsonBtn" class="secondary" type="button">Print output JSON</button>
+        </div>
       </div>
     </section>
   </main>
+
   <script>
     const defaults = { shipping_cost: 0, tax_rate: 1.1, exchange_rate: 1.0, profit_rate: 1.25, discount_rate: 0 };
-    let data = { rfq_id: "", quotation_id: "", company_id: 1, user_id: 1, items: [] };
+    let data = { rfq_id: "", quotation_id: "", company_id: "", user_id: "", items: [] };
     let calculated = null;
-    const fmt = n => Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
-    const num = (v, d) => v === null || v === undefined || v === "" ? d : Number(v);
-    const roundUnit = v => Math.round(v);
-    const roundPrice = v => v <= 0 ? 0 : Math.max(1000, Math.round(v / 1000) * 1000);
-    function calcItem(item) {
-      const qty = num(item.qty, 0), bidder = num(item.bidder_unit_price, 0);
+
+    const byId = id => document.getElementById(id);
+    const num = (value, fallback) => value === null || value === undefined || value === "" || Number.isNaN(Number(value)) ? fallback : Number(value);
+    const money = value => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const roundUnit = value => Math.round(value);
+    const roundPrice = value => value <= 0 ? 0 : Math.max(1000, Math.round(value / 1000) * 1000);
+    const itemKey = item => String(item.item_id ?? "");
+
+    function normalizeInput(input) {
+      const source = input && typeof input === "object" ? input : {};
+      const items = Array.isArray(source.items) ? source.items : [];
+      return {
+        rfq_id: source.rfq_id ?? "",
+        rfq_reference: source.rfq_reference ?? source.subject ?? "",
+        quotation_id: source.quotation_id ?? "",
+        company_id: source.company_id ?? "",
+        user_id: source.user_id ?? "",
+        transfer_currency_code: source.transfer_currency_code ?? source.required_currency ?? "",
+        items: items.map((item, index) => ({
+          selected: item.selected !== false,
+          item_id: item.item_id ?? index + 1,
+          company_description: item.company_description ?? item.description ?? "",
+          qty: num(item.qty, 0),
+          uom: item.uom ?? "",
+          supplier_status_id: item.supplier_status_id ?? item.supplier_item_status_id ?? "",
+          supplier_name: item.supplier_name ?? "",
+          bidder_unit_price: num(item.bidder_unit_price, 0),
+          currency_code: item.currency_code ?? source.transfer_currency_code ?? "",
+          shipping_cost: item.shipping_cost,
+          tax_rate: item.tax_rate,
+          exchange_rate: item.exchange_rate,
+          profit_rate: item.profit_rate,
+          discount_rate: item.discount_rate
+        }))
+      };
+    }
+
+    function calculateItem(item) {
+      const qty = num(item.qty, 0);
+      const bidder = num(item.bidder_unit_price, 0);
       const shipping = num(item.shipping_cost, defaults.shipping_cost);
       const tax = num(item.tax_rate, defaults.tax_rate);
       const exchange = num(item.exchange_rate, defaults.exchange_rate);
@@ -108,76 +538,237 @@
       const sales = roundUnit(profitUnit - discountAmount);
       const ext = roundPrice(sales * qty);
       const potential = (roundUnit(profitUnit) - roundUnit(actual)) * qty;
-      return { ...item, shipping_cost: shipping, tax_rate: tax, exchange_rate: exchange, profit_rate: profit, discount_rate: discount, actual_unit_price: actual, profit_unit_price: profitUnit, discount_amount: discountAmount, sales_unit_price: sales, ext_price: ext, potential_profit: potential };
+      return {
+        ...item,
+        shipping_cost: shipping,
+        tax_rate: tax,
+        exchange_rate: exchange,
+        profit_rate: profit,
+        discount_rate: discount,
+        actual_unit_price: actual,
+        profit_unit_price: profitUnit,
+        discount_amount: discountAmount,
+        sales_unit_price: sales,
+        ext_price: ext,
+        potential_profit: potential
+      };
     }
+
     function calculate() {
-      const items = data.items.map(calcItem);
-      const totalRaw = items.reduce((s, x) => s + Number(x.ext_price || 0), 0);
-      const totalProfit = items.reduce((s, x) => s + Number(x.potential_profit || 0), 0);
-      calculated = { ...data, items, totals: { total_amount: roundPrice(totalRaw), total_profit: totalProfit } };
-      render(items);
+      const items = data.items.map(calculateItem);
+      const totalRaw = items.reduce((sum, item) => sum + Number(item.ext_price || 0), 0);
+      const totalProfit = items.reduce((sum, item) => sum + Number(item.potential_profit || 0), 0);
+      const warnings = buildWarnings(items);
+      calculated = {
+        ...data,
+        items,
+        totals: { total_amount: roundPrice(totalRaw), total_profit: totalProfit },
+        warnings
+      };
+      render();
+      return calculated;
     }
-    function render(items = data.items) {
-      const q = document.getElementById("search").value.toLowerCase();
-      const rows = document.getElementById("rows");
-      rows.innerHTML = "";
+
+    function buildWarnings(items) {
+      const warnings = [];
       for (const item of items) {
-        const hay = `${item.item_id} ${item.company_description || ""} ${item.supplier_name || ""}`.toLowerCase();
-        if (q && !hay.includes(q)) continue;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><input type="checkbox" class="useRow" checked></td>
-          <td><span class="badge">${item.item_id ?? ""}</span></td>
-          <td class="desc">${item.company_description || ""}<br><small>${item.supplier_name || "No supplier selected"} ${item.currency_code || ""}</small></td>
-          <td class="num">${fmt(item.bidder_unit_price)}</td>
-          <td class="num">${fmt(item.qty)}</td>
-          <td><input data-k="shipping_cost" data-id="${item.item_id}" type="number" step="0.01" value="${num(item.shipping_cost, defaults.shipping_cost)}"></td>
-          <td><input data-k="tax_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.tax_rate, defaults.tax_rate)}"></td>
-          <td><input data-k="exchange_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.exchange_rate, defaults.exchange_rate)}"></td>
-          <td><input data-k="profit_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.profit_rate, defaults.profit_rate)}"></td>
-          <td><input data-k="discount_rate" data-id="${item.item_id}" type="number" step="0.0001" value="${num(item.discount_rate, defaults.discount_rate)}"></td>
-          <td class="num">${fmt(item.sales_unit_price)}</td>
-          <td class="num">${fmt(item.ext_price)}</td>
-          <td class="num">${fmt(item.potential_profit)}</td>`;
-        rows.appendChild(tr);
+        if (num(item.qty, 0) <= 0) warnings.push(`Item ${item.item_id}: quantity is missing or zero.`);
+        if (num(item.bidder_unit_price, 0) <= 0) warnings.push(`Item ${item.item_id}: bidder unit price is missing or zero.`);
+        if (num(item.exchange_rate, defaults.exchange_rate) <= 0) warnings.push(`Item ${item.item_id}: exchange rate must be positive.`);
       }
-      document.querySelectorAll("input[data-k]").forEach(input => input.addEventListener("change", e => {
-        const id = e.target.dataset.id, k = e.target.dataset.k;
-        const item = data.items.find(x => String(x.item_id) === String(id));
-        if (item) item[k] = Number(e.target.value);
-        calculate();
-      }));
-      const totals = calculated?.totals || { total_amount: 0, total_profit: 0 };
-      document.getElementById("totalAmount").textContent = fmt(totals.total_amount);
-      document.getElementById("totalProfit").textContent = fmt(totals.total_profit);
-      document.getElementById("itemCount").textContent = items.length;
+      return warnings;
     }
-    document.getElementById("loadBtn").onclick = () => {
-      data = JSON.parse(document.getElementById("jsonInput").value);
-      data.items = data.items || [];
-      calculate();
-    };
-    document.getElementById("sampleBtn").onclick = () => {
-      data = { rfq_id: 1, quotation_id: 1, company_id: 1, user_id: 1, items: [{ item_id: 1, company_description: "Example item", qty: 10, uom: "EA", supplier_status_id: 1, supplier_name: "Example supplier", bidder_unit_price: 100000, currency_code: "VND" }] };
-      document.getElementById("jsonInput").value = JSON.stringify(data, null, 2);
-      calculate();
-    };
-    document.getElementById("calcBtn").onclick = calculate;
-    document.getElementById("search").oninput = () => render(calculated?.items || data.items);
-    document.getElementById("bulkBtn").onclick = () => {
-      const map = { bulkShipping: "shipping_cost", bulkTax: "tax_rate", bulkExchange: "exchange_rate", bulkProfit: "profit_rate", bulkDiscount: "discount_rate" };
-      for (const [inputId, key] of Object.entries(map)) {
-        const raw = document.getElementById(inputId).value;
-        if (raw !== "") data.items.forEach(item => item[key] = Number(raw));
+
+    function visibleItems() {
+      const query = byId("search").value.trim().toLowerCase();
+      const rows = calculated?.items || data.items;
+      if (!query) return rows;
+      return rows.filter(item => {
+        const haystack = `${item.item_id} ${item.company_description} ${item.supplier_name} ${item.currency_code}`.toLowerCase();
+        return haystack.includes(query);
+      });
+    }
+
+    function updateItemValue(itemId, key, raw) {
+      const item = data.items.find(row => String(row.item_id) === String(itemId));
+      if (!item) return;
+      if (key === "selected") {
+        item.selected = Boolean(raw);
+      } else {
+        item[key] = raw === "" ? null : Number(raw);
       }
       calculate();
-    };
-    document.getElementById("exportBtn").onclick = async () => {
+    }
+
+    function render() {
+      const rows = visibleItems();
+      const board = byId("itemBoard");
+      board.innerHTML = "";
+
+      if (rows.length === 0) {
+        board.innerHTML = '<div class="empty">No matching pricing items.</div>';
+      } else {
+        for (const item of rows) {
+          const key = itemKey(item);
+          const selected = item.selected !== false;
+          const card = document.createElement("article");
+          card.className = `item-card${selected ? " selected" : ""}`;
+          card.innerHTML = `
+            <div class="item-top">
+              <input type="checkbox" data-role="selected" data-id="${key}" ${selected ? "checked" : ""} aria-label="Select item ${key}">
+              <div>
+                <div><span class="item-id">${key}</span></div>
+                <div class="desc">${escapeHtml(item.company_description || "No item description")}</div>
+                <div class="sub">${escapeHtml(item.supplier_name || "No supplier selected")} ${item.currency_code ? "| " + escapeHtml(item.currency_code) : ""}</div>
+              </div>
+              <span class="status ${item.bidder_unit_price > 0 ? "good" : "warn"}">${item.bidder_unit_price > 0 ? "priced source" : "price needed"}</span>
+            </div>
+            <div class="facts">
+              <div class="fact"><strong>Bidder unit</strong><span>${money(item.bidder_unit_price)}</span></div>
+              <div class="fact"><strong>Quantity</strong><span>${money(item.qty)} ${escapeHtml(item.uom || "")}</span></div>
+              <div class="fact"><strong>Supplier row</strong><span>${escapeHtml(item.supplier_status_id || "N/A")}</span></div>
+            </div>
+            <div class="pricing-grid">
+              ${pricingInput("shipping_cost", "Shipping", item)}
+              ${pricingInput("tax_rate", "Tax", item)}
+              ${pricingInput("exchange_rate", "Exchange", item)}
+              ${pricingInput("profit_rate", "Profit", item)}
+              ${pricingInput("discount_rate", "Discount", item)}
+            </div>
+            <div class="result-line">
+              <div class="result"><strong>Sales unit</strong><span>${money(item.sales_unit_price)}</span></div>
+              <div class="result"><strong>Ext price</strong><span>${money(item.ext_price)}</span></div>
+              <div class="result"><strong>Potential profit</strong><span>${money(item.potential_profit)}</span></div>
+            </div>`;
+          board.appendChild(card);
+        }
+      }
+
+      board.querySelectorAll("input[data-role='selected']").forEach(input => {
+        input.addEventListener("change", event => updateItemValue(event.target.dataset.id, "selected", event.target.checked));
+      });
+      board.querySelectorAll("input[data-key]").forEach(input => {
+        input.addEventListener("change", event => updateItemValue(event.target.dataset.id, event.target.dataset.key, event.target.value));
+      });
+
+      renderResults(rows);
+      renderWarnings();
+      renderJson();
+      renderMeta(rows);
+    }
+
+    function pricingInput(key, label, item) {
+      const value = item[key] === null || item[key] === undefined || item[key] === "" ? defaults[key] : item[key];
+      return `<div><label>${label}</label><input data-key="${key}" data-id="${escapeHtml(itemKey(item))}" type="number" step="0.0001" value="${value}"></div>`;
+    }
+
+    function renderResults(rows) {
+      const totals = calculated?.totals || { total_amount: 0, total_profit: 0 };
+      byId("resultsBoard").innerHTML = `
+        <div class="total"><strong>Total amount</strong><span>${money(totals.total_amount)}</span></div>
+        <div class="total internal"><strong>Total profit</strong><span>${money(totals.total_profit)}</span></div>
+        <div class="total"><strong>Visible items</strong><span>${rows.length}</span></div>
+        <div class="total"><strong>Selected items</strong><span>${data.items.filter(item => item.selected !== false).length}</span></div>`;
+    }
+
+    function renderWarnings() {
+      const warnings = calculated?.warnings || [];
+      byId("warnings").innerHTML = warnings.slice(0, 5).map(text => `<div class="warning">${escapeHtml(text)}</div>`).join("");
+    }
+
+    function renderJson() {
+      if (!calculated) {
+        byId("jsonOutput").value = "";
+        return;
+      }
+      byId("jsonOutput").value = JSON.stringify(calculated, null, 2);
+    }
+
+    function renderMeta(rows) {
+      const currencySet = new Set(data.items.map(item => item.currency_code).filter(Boolean));
+      byId("rfqMeta").textContent = data.rfq_reference || data.rfq_id || "Not loaded";
+      byId("quotationMeta").textContent = data.quotation_id || "Not loaded";
+      byId("currencyMeta").textContent = currencySet.size === 1 ? Array.from(currencySet)[0] : (data.transfer_currency_code || "Mixed / not loaded");
+      byId("visibleCount").textContent = rows.length;
+      byId("selectedCount").textContent = data.items.filter(item => item.selected !== false).length;
+      byId("pricedCount").textContent = data.items.filter(item => num(item.bidder_unit_price, 0) > 0).length;
+    }
+
+    function applyBulk(scope) {
+      const map = {
+        bulkShipping: "shipping_cost",
+        bulkTax: "tax_rate",
+        bulkExchange: "exchange_rate",
+        bulkProfit: "profit_rate",
+        bulkDiscount: "discount_rate"
+      };
+      const targetIds = new Set((scope === "selected" ? data.items.filter(item => item.selected !== false) : data.items).map(item => String(item.item_id)));
+      for (const [inputId, key] of Object.entries(map)) {
+        const raw = byId(inputId).value;
+        if (raw === "") continue;
+        for (const item of data.items) {
+          if (targetIds.has(String(item.item_id))) item[key] = Number(raw);
+        }
+      }
       calculate();
-      const text = JSON.stringify(calculated, null, 2);
-      await navigator.clipboard.writeText(text);
-      alert("Calculated pricing JSON copied to clipboard.");
-    };
+    }
+
+    function loadFromTextarea() {
+      try {
+        data = normalizeInput(JSON.parse(byId("jsonInput").value));
+        calculate();
+      } catch (error) {
+        byId("warnings").innerHTML = `<div class="warning">JSON could not be loaded: ${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    function loadSample() {
+      data = normalizeInput({
+        rfq_id: 1,
+        rfq_reference: "PRD-25-PR-10337",
+        quotation_id: 1,
+        company_id: 1,
+        user_id: 1,
+        transfer_currency_code: "VND",
+        items: [
+          { item_id: 1, company_description: "Swing check valve, 2 inch, 150#, RF", qty: 2, uom: "EA", supplier_status_id: 101, supplier_name: "Verified Supplier A", bidder_unit_price: 10, currency_code: "USD", exchange_rate: 27000 },
+          { item_id: 2, company_description: "Air dryer package valve spare part", qty: 4, uom: "EA", supplier_status_id: 102, supplier_name: "Verified Supplier B", bidder_unit_price: 1250000, currency_code: "VND" }
+        ]
+      });
+      byId("jsonInput").value = JSON.stringify(data, null, 2);
+      calculate();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+    }
+
+    byId("loadBtn").addEventListener("click", loadFromTextarea);
+    byId("sampleBtn").addEventListener("click", loadSample);
+    byId("calcBtn").addEventListener("click", calculate);
+    byId("applySelectedBtn").addEventListener("click", () => applyBulk("selected"));
+    byId("applyAllBtn").addEventListener("click", () => applyBulk("all"));
+    byId("search").addEventListener("input", render);
+    byId("copyJsonBtn").addEventListener("click", async () => {
+      calculate();
+      const text = byId("jsonOutput").value;
+      try {
+        await navigator.clipboard.writeText(text);
+        byId("copyJsonBtn").textContent = "JSON copied";
+        setTimeout(() => byId("copyJsonBtn").textContent = "Print output JSON", 1200);
+      } catch {
+        byId("jsonOutput").focus();
+        byId("jsonOutput").select();
+      }
+    });
+
+    if (window.PRICING_INPUT) {
+      data = normalizeInput(window.PRICING_INPUT);
+      byId("jsonInput").value = JSON.stringify(data, null, 2);
+      calculate();
+    } else {
+      render();
+    }
   </script>
 </body>
 </html>

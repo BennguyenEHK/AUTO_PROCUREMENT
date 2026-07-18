@@ -1,0 +1,5 @@
+[
+  {"name":"pipe rows and contacts","input":{"email_body_content":"1 | 123456 | Pump assembly | 4 (EA)\n2 | Valve | 2 (SET)","from_email":"buyer@example.com","cc":["copy@example.com"],"attachment_text":"Attn: Ms. Jane Buyer\nTel: +66 2 123 4567\nFax: +66 2 765 4321"},"items":[{"item_id":1,"company_description":"Pump assembly","qty":4,"uom":"EA"},{"item_id":2,"company_description":"Valve","qty":2,"uom":"SET"}]},
+  {"name":"key value item","input":{"email_body_content":"Description: Plate heat exchanger gasket\nManufacturer: Alfa Laval\nModel: M10\nRequired gasket quantity: 3 EA"},"items":[{"item_id":1,"company_description":"Plate heat exchanger gasket; Manufacturer / Package supplier: Alfa Laval; Model: M10","qty":3,"uom":"EA"}]},
+  {"name":"missing body fails","input":{},"success":false}
+]

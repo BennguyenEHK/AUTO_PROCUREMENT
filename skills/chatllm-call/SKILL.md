@@ -156,6 +156,44 @@ When called from `rfq-analysis`:
 - Preserve manufacturer part numbers, model codes, SKUs, tag numbers, standards, quantities, and units verbatim.
 - When live web evidence matters, explicitly request web search and citations/source URLs in the prompt.
 
+## Supplier Search Usage
+
+When called from `suppliers-search`, ChatLLM is a candidate-discovery layer only. The owning supplier-search workflow and main Codex verification remain responsible for final acceptance, persistence, and reporting.
+
+Supplier-search prompts must require web search and must return ONLY valid JSON when the caller needs structured candidate rows. The prompt must force every candidate to include these keys:
+
+- `supplier_name`
+- `merchant_name`
+- `manufacturer`
+- `product_name`
+- `product_page_url`
+- `source_url`
+- `source_type`
+- `page_title`
+- `other_information`
+- `contact_email`
+- `contact_phone`
+- `social_contact`
+- `contact_source_url`
+- `bidder_unit_price`
+- `currency_code`
+- `delivery_time`
+- `available_qty`
+- `selling_unit`
+- `pack_size`
+- `image_urls`
+- `claimed_match_type`
+- `evidence_snippets`
+- `discovery_notes`
+
+For supplier-search, the prompt must explicitly instruct ChatLLM to search for same-supplier contact details, social/contact-form routes, visible currency, available quantity, selling unit, and pack size. Do not allow the model to omit keys just because values are not found; unavailable values must be `null` with a short missing-data note.
+
+`product_page_url` is mandatory for verified supplier-search candidates. It must be a direct product page for the exact or closest offered product, not a homepage, search-result page, generic category page, or corporate profile. If ChatLLM cannot find a direct product page, it must mark the candidate `claimed_match_type = "lead_only"` and explain that the product page is missing.
+
+At least one supplier-owned `contact_email` or `contact_phone` must be searched for every candidate and is mandatory for a satisfactory verified supplier-search result. Include `social_contact` when the same supplier/merchant exposes WhatsApp, LinkedIn, contact form, marketplace chat, or another public route, but do not use it as a substitute for the required email/phone unless the caller explicitly allows low-confidence leads. The contact must match the product-page merchant/supplier by same domain, official supplier contact page, product-page contact block, or marketplace merchant profile. Do not mix manufacturer, distributor, or unrelated regional-office contacts unless that entity is the actual supplier/merchant for the product page.
+
+The calling workflow must validate returned JSON, re-check sources, and reject or downgrade candidates that lack a direct product page or same-supplier contact evidence.
+
 ## Failure Handling
 
 - Missing `ABACUSAI_CMD`: the helper runs setup and stores the discovered command path.

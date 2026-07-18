@@ -1,24 +1,40 @@
 ---
 name: report-generator
-description: Generate procurement reports, searchable supplier-search HTML reports, and native editable technical/commercial quotation proposal HTML files for QuoteFlow. Use when Codex needs to turn Neon or fresh procurement JSON into report.html, create customer-facing technical or commercial supplier proposal HTML documents from QuoteFlow quotation data, run the native Windows proposal-html-generator.ps1 path, remove all price columns/totals from technical proposals, include full pricing in commercial proposals, or avoid PDF/Excel/document plugins for proposal generation.
+description: Route QuoteFlow report, pricing, and proposal review to canonical web-app deep links, and generate standalone artifacts only when a customer explicitly requires them.
 ---
 
 # Report Generator
 ## Local Artifact Links
 
-When returning local artifacts, resolve the actual absolute Windows path; use Windows links (and browser-safe `file:///C:/...` for HTML), never `/mnt/c/...` or `C:/mnt/c/...`.
+When returning local artifacts, first verify the exact output file exists and is non-empty. Resolve the actual absolute Windows path; for HTML/report previews provide a browser-safe `file:///C:/...` or `file:///D:/...` URL plus the Windows path. Never return placeholder, relative, stale, `/mnt/c/...`, or `C:/mnt/c/...` links.
+
+When generating an HTML report on behalf of another skill, save the file in that owning skill's `output` folder by passing an explicit `-OutputPath`. For the reply-impact specialist skills, use:
+
+- `C:\Users\LENOVO\.codex\skills\supplier-quotation-normalizer\output`
+- `C:\Users\LENOVO\.codex\skills\technical-compliance-review\output`
+- `C:\Users\LENOVO\.codex\skills\certificate-origin-review\output`
+
+Return both the verified Windows path and a Codex-openable `file:///C:/...` preview link. Do not return a link until the file exists and is non-empty.
+
+When editing this `SKILL.md` or report-generator Markdown/control files, preserve UTF-8 without BOM and verify no BOM after edits when practical.
 
 ## Purpose
 
 Use this skill to create reusable procurement reporting artifacts without making the model hand-generate long HTML layouts each run.
 
+## Canonical Web App Links
+
+Use `http://localhost:3000/?view=documents&tab=quotes&rfqId=<id>` for quotes, `http://localhost:3000/?view=documents&tab=technical&rfqId=<id>` for technical review, `http://localhost:3000/?view=pricing&rfqId=<id>` for pricing, and `http://localhost:3000/?view=proposal&rfqId=<id>` for proposals.
+
+Do not generate or open standalone HTML for normal workflow review. Generate a standalone artifact only where the customer explicitly requires it, and verify its path before returning it.
+
 Primary outputs:
 
-- Supplier-search HTML report from JSON using `tools/report-generator/form-generator.ps1`.
-- Native editable Technical Proposal HTML using `tools/report-generator/proposal-html-generator.ps1`.
-- Native editable Commercial Proposal HTML using `tools/report-generator/proposal-html-generator.ps1`.
+- Customer-required Response Impact HTML using `tools/report-generator/form-generator.ps1 -Mode response-impact`.
+- Customer-required native editable Technical Proposal HTML using `tools/report-generator/proposal-html-generator.ps1`.
+- Customer-required native editable Commercial Proposal HTML using `tools/report-generator/proposal-html-generator.ps1`.
 
-Do not use spreadsheet, document, or PDF plugins for the technical/commercial quotation proposal generation path. Use native Windows PowerShell to generate editable HTML only. Do not auto-create PDF files; users create PDFs manually from the HTML browser Print / Save PDF dialog and choose their own save location.
+For normal technical/commercial proposal review, return the canonical proposal deep link. Do not auto-create a PDF; when a customer explicitly requires a standalone proposal, generate only the required artifact.
 
 ## Required Preflight
 
@@ -39,7 +55,7 @@ Live schema confirmed for this proposal path:
 - `user_company`: `company_id`, `company_name`, `company_number`, `company_address`, `company_fax`, `company_email`.
 - `quotations`: `quotation_id`, `rfq_id`, `quotation_name`, `version_number`, `generated_day`, `total_amount`, `transfer_currency_code`, `commercial_terms`, `company_id`, `user_id`.
 - `quotation_pricing`: `quotation_id`, `item_id`, `sales_unit_price`, `ext_price`, `tax_rate`, `exchange_currency`, `shipping_cost`, `discount_rate`, `profit_rate`, `exchange_rate`, `company_id`, `user_id`.
-- `supplier_item_status`: `rfq_id`, `item_id`, `supplier_name`, `bidder_description`, `bidder_unit_price`, `delivery_time`, `currency_code`, `manufacturer`, `item_origin`, `compliance_deviation`, `evidence`, `company_id`, `user_id`.
+- `supplier_item_status`: `rfq_id`, `item_id`, `supplier_name`, `bidder_description`, `contact_email`, `contact_phone`, `social_contact`, `bidder_unit_price`, `currency_code`, `delivery_time`, `available_qty`, `selling_unit`, `pack_size`, `manufacturer`, `item_origin`, `compliance_deviation`, `match_reasoning`, `evidence`, `company_id`, `user_id`.
 - `selected_offers`: preferred source for final proposal rows when available, including `rfq_id`, `item_id`, selected supplier/manufacturer/model/P/N/description, qty, UOM, country of origin, lead time, certificates, technical/deviation status, final selling prices, currency, approval status, and `frozen_at`.
 - `file_metadata`: optional asset storage with `file_image`, `file_html`, `file_category`, `rfq_id`, `quotation_id`, `company_id`, `user_id`. Do not assume it contains a usable logo or signature unless live rows prove it.
 
@@ -187,9 +203,80 @@ Required behavior:
 - Use `quotation_pricing.sales_unit_price`, `quotation_pricing.ext_price`, and `quotations.total_amount` as customer-facing values only after pricing is approved through the `comercial-pricing` pricing canvas/review packet or explicit direct-pricing approval.
 - Never expose `potential_profit`, `profit_rate`, internal supplier cost, internal margins, or internal calculation notes in customer-facing outputs.
 
-## Supplier Search HTML
+## Customer-Required RFQ Analysis HTML
 
-Input can come from Neon rows or fresh supplier-search JSON. Normalize it to:
+Use this mode only when the customer explicitly requires a standalone RFQ Analysis HTML artifact. Otherwise, use the canonical technical deep link before `$bid-package-orchestrator` advances to `$suppliers-search`.
+
+The RFQ-analysis report is a user-validation gate. It must be readable enough for the user to approve or correct:
+
+- customer company/contact information;
+- deadline / closing / delivery timing;
+- RFQ requirement summary;
+- special or further requirements;
+- required documents and certificates;
+- clarifications or missing information;
+- extracted item descriptions, quantities, UOM, and functional summaries.
+
+Normalize RFQ analysis data to:
+
+```json
+{
+  "generated_at": "2026-07-14",
+  "rfq_id": 1,
+  "company_id": 1,
+  "user_id": 1,
+  "customer_info": {
+    "company_name": "Customer",
+    "customer_address": "Address",
+    "attention_person": "Attn",
+    "email": "customer@example.com",
+    "phone": "Phone",
+    "fax_number": "Fax",
+    "carbon_copy_person": []
+  },
+  "rfq_analysis": {
+    "rfq_reference": "RFQ-001",
+    "subject": "RFQ Analysis - title",
+    "analysis_content": "2-5 sentence summary",
+    "required_currency": "VND",
+    "deadline": "Quotation deadline / closing time / delivery deadline when known",
+    "deadline_period": "45 days",
+    "closing_time": "2026-07-14T12:00:00Z",
+    "special_requirements": {},
+    "required_documents": {},
+    "clarifications": []
+  },
+  "items": [
+    {
+      "item_id": 1,
+      "company_description": "exact original description",
+      "qty": "1",
+      "uom": "EA",
+      "agent_item_summary": {}
+    }
+  ]
+}
+```
+
+Run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\LENOVO\.codex\skills\report-generator\tools\report-generator\form-generator.ps1 `
+  -Mode rfq-analysis `
+  -InputJson C:\path\to\rfq-analysis-review.json
+```
+
+Default output folder:
+
+```text
+C:\Users\LENOVO\.codex\skills\report-generator\tools\report-generator\output\rfq-analysis
+```
+
+The RFQ-analysis report must not include supplier cards, supplier links, match scores, supplier pricing, supplier images, or supplier-search terminology.
+
+## Customer-Required Supplier Search HTML
+
+Only when the customer explicitly requires a standalone supplier-search HTML artifact, normalize Neon rows or fresh supplier-search JSON to:
 
 ```json
 {
@@ -197,6 +284,36 @@ Input can come from Neon rows or fresh supplier-search JSON. Normalize it to:
   "rfq_id": 1,
   "company_id": 1,
   "user_id": 1,
+  "rfq_analysis": {
+    "deadline": "Quotation deadline / closing time / delivery deadline when known",
+    "deadline_period": "45 days",
+    "closing_time": "2026-07-14T12:00:00Z",
+    "special_requirements": {
+      "coo_origin": ["country of origin restrictions or declarations"],
+      "certificates": ["certificate requirements"],
+      "standards": ["technical standards"],
+      "inspection": ["inspection or test requirements"],
+      "documentation": ["datasheets, manuals, QA documents"],
+      "manufacturer_authorization": ["authorization or OEM/distributor requirements"],
+      "incoterms": ["Incoterms"],
+      "currency": ["required quotation currency"],
+      "validity": ["quotation validity"],
+      "payment_terms": ["payment terms"],
+      "bid_bonds": ["bid bond requirements"],
+      "technical_commercial_forms": ["technical/commercial bid forms"],
+      "commercial": ["Incoterms, currency, validity, payment terms"],
+      "technical": ["standards, inspection, manufacturer authorization"],
+      "submission": ["technical/commercial forms, bid bonds"],
+      "compliance": ["COO/origin, certificates, documentation"]
+    },
+    "required_documents": {
+      "certificates": ["COO, CoC, CQ, calibration, hydrotest, MTR"],
+      "bid_documents": ["technical proposal, commercial proposal, forms"],
+      "shipping_documents": [],
+      "invoice_backup": []
+    },
+    "clarifications": []
+  },
   "items": [
     {
       "item_id": 1,
@@ -205,11 +322,43 @@ Input can come from Neon rows or fresh supplier-search JSON. Normalize it to:
       "uom": "EA",
       "agent_item_summary": {},
       "images": [{ "url": "https://...", "caption": "..." }],
-      "suppliers": []
+      "suppliers": [
+        {
+          "supplier_name": "verified supplier",
+          "manufacturer": "verified manufacturer when known",
+          "source_url": "https://...",
+          "contact_email": "sales@example.com",
+          "contact_phone": "+84...",
+          "social_contact": "WhatsApp/contact form/LinkedIn when visible",
+          "bidder_unit_price": 0,
+          "currency_code": "USD",
+          "delivery_time": "stock/lead time text",
+          "available_qty": 10,
+          "selling_unit": "EA",
+          "pack_size": 1,
+          "other_information": "concise source-supported supplier/product notes",
+          "match_type": "exact_match",
+          "match_score": 90,
+          "match_reason": "why this source matches",
+          "technical_differences": "None",
+          "alternative_reason": ""
+        }
+      ]
     }
   ]
 }
 ```
+
+The supplier-search report must render RFQ baseline data as separate readable sections before item cards:
+
+- deadline / closing / delivery timing;
+- special or further requirements, separated where available into COO/origin, certificates, standards, inspection, documentation, manufacturer authorization, Incoterms, currency, validity, payment terms, bid bonds, technical/commercial forms, commercial, technical, submission, and compliance;
+- required documents and certificates;
+- clarifications or missing information.
+
+The generator must render `agent_item_summary` as procurement-readable text, not raw JSON. When the summary has `identification`, `classification`, `application`, `purpose`, and `features`, show those as labeled sections or bullet lists.
+
+For supplier cards, render source-supported contact and commercial fields when present: `contact_email`, `contact_phone`, `social_contact`, `bidder_unit_price`, `currency_code`, `delivery_time`, `available_qty`, `selling_unit`, and `pack_size`. Do not display unknown values as invented defaults; omit or label them as not found.
 
 Run:
 
@@ -222,6 +371,71 @@ Default output folder:
 
 ```text
 C:\Users\LENOVO\.codex\skills\report-generator\tools\report-generator\output\search
+```
+
+## Response Impact HTML
+
+Use this mode after `$bid-package-orchestrator` processes a meaningful customer/supplier/OEM/manufacturer/distributor reply. The report is the user-facing proof that the reply was checked against the workflow and that only affected specialist stages were run.
+
+Normalize response-impact data to:
+
+```json
+{
+  "generated_at": "2026-07-15",
+  "rfq_id": 1,
+  "rfq_reference": "PRD-25-PR-10337",
+  "response_source": {
+    "party_type": "supplier",
+    "subject": "RFQ - PRD-25-PR-10337",
+    "message_date": "2026-07-15",
+    "source_reference": "Gmail thread / file / attachment"
+  },
+  "prior_checkpoint": "supplier_search",
+  "routing_decision": {
+    "meaningful_bid_impact": true,
+    "skills_called": ["supplier-quotation-normalizer", "technical-compliance-review"],
+    "skills_skipped": ["certificate-origin-review"],
+    "reason": "Supplier revised offer changed price and offered model; no certificate/origin change."
+  },
+  "affected_items": [
+    { "item_id": 1, "fields": ["price", "model"], "impact": "technical and commercial basis changed" }
+  ],
+  "supplier_quote_normalization": {},
+  "technical_compliance_impact": {},
+  "certificate_origin_document_impact": {},
+  "numerical_proof": [],
+  "blockers": [],
+  "next_required_action": "continue to commercial_pricing",
+  "recommendation": "continue"
+}
+```
+
+The HTML report must render separate sections for:
+
+- response source and prior checkpoint;
+- affected items, fields, stages, and documents;
+- routing decision, skills called, and skills intentionally skipped;
+- Supplier Quote Normalization Result when called;
+- Technical Compliance Impact when called;
+- Certificate / Origin / Document Impact when called;
+- Numerical Proof Appendix with calculation method and graph/table proof when material numbers are involved;
+- blockers and next required action;
+- recommendation: continue, block, ask supplier, ask customer, rerun pricing, revisit selected offer, regenerate forms, or rerun QA.
+
+Do not collapse specialist findings into one untraceable paragraph. Preserve each specialist conclusion, source evidence, persistence status, and blocker status.
+
+Run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\LENOVO\.codex\skills\report-generator\tools\report-generator\form-generator.ps1 `
+  -Mode response-impact `
+  -InputJson C:\path\to\response-impact.json
+```
+
+Default output folder:
+
+```text
+C:\Users\LENOVO\.codex\skills\report-generator\tools\report-generator\output\response-impact
 ```
 
 ## Design Rules
@@ -242,8 +456,12 @@ Apply `$frontend-design` for editable proposal HTML:
 Before final response:
 
 - Verify input JSON parsed successfully.
+- For customer-required RFQ-analysis reports, verify the generated HTML title is `RFQ Analysis Report`, baseline sections render, customer info renders when provided, extracted items render, and no supplier cards, match scores, supplier prices, or supplier-search results appear.
+- For customer-required supplier-search reports, verify the generated HTML title is `Supplier Search Report`, RFQ baseline sections render when provided, supplier cards render, source-supported contact/commercial fields render when provided, and structured `agent_item_summary` is readable rather than raw JSON.
+- For response-impact reports, verify the generated HTML title is `Response Impact Report`, routing decision renders, called/skipped skills render, each called specialist section renders separately, blockers and next action render, and numerical proof appears when provided.
 - Verify proposal JSON for final customer-facing output was built from re-read `selected_offers` rows when that table exists.
 - Verify generated HTML exists and is non-empty.
+- For a customer-required standalone artifact, verify any returned preview link points to the actual generated output path and opens through a browser-safe `file:///C:/...` or `file:///D:/...` URL.
 - Verify technical HTML has no visible unit price, extended price, subtotal, VAT, or total amount columns/rows.
 - Verify commercial HTML includes unit price, extended price, and total amount.
 - Verify commercial HTML is generated only from approved and persisted pricing; otherwise report the missing pricing approval and do not present it as final.
@@ -256,8 +474,8 @@ Before final response:
 
 Return only the useful artifact links plus a short status:
 
-- Technical editable HTML path.
-- Commercial editable HTML path.
+- The applicable canonical web-app deep link for normal workflow review.
+- A verified path and browser-safe `file:///...` link only for a customer-required standalone artifact.
 - Database tables used.
 - Missing data or assumptions.
 

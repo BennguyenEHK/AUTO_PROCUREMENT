@@ -4,13 +4,21 @@ description: Extract, normalize, compare, and map supplier quotations, proformas
 ---
 
 # Supplier Quotation Normalizer
-## Local Artifact Links
+## Web App Navigation
 
-When returning local artifacts, resolve the actual absolute Windows path; use Windows links (and browser-safe `file:///C:/...` for HTML), never `/mnt/c/...` or `C:/mnt/c/...`.
+For normal workflow review, use `http://localhost:3000/?view=documents&tab=quotes&rfqId=<id>`. Do not generate, save, or open a standalone HTML normalization report for normal workflow use.
+
+For interim or blocked normalization, return the evidence, affected items, mapping confidence, arithmetic proof, exceptions, persistence status, blockers, and next action in chat. Do not return a final-report link. Create a standalone artifact only when the customer explicitly requires one, and verify its exact path before returning it.
+
+When editing this `SKILL.md` or supplier-quotation Markdown/control files, preserve UTF-8 without BOM and verify no BOM after edits when practical.
 
 ## Purpose
 
 Turn supplier offers into structured, comparable, traceable quotation data. Detect commercial and technical quote exceptions before pricing, offer selection, compliance review, or final bid generation.
+
+## Final Report Readiness Gate
+
+Return `http://localhost:3000/?view=documents&tab=quotes&rfqId=<id>` only after every RFQ item has a supplier, final conclusion, and quote, mapping, or arithmetic evidence. Until then, return chat evidence only and no final link.
 
 ## Workflow Stage
 
@@ -20,6 +28,15 @@ Turn supplier offers into structured, comparable, traceable quotation data. Dete
 - Stage owner: `bid-package-orchestrator`.
 - State persistence: after quote extraction, customer-item mapping, arithmetic checks, exception reporting, and `supplier_quote_normalizations` persistence, use `quoteflow-neon` to update stage fields when the target RFQ row is clear. On success, append this stage to `completed_stages`, set `current_stage` to the orchestrator-selected next stage, set `stage_status` to `ready_for_next_stage` or `in_progress`, clear/refresh `stage_blockers`, and write `next_required_action`. On block, do not advance `current_stage`; set `stage_status = blocked`, populate `stage_blockers`, and set `next_required_action` to the unblock action.
 - Boundary: this skill structures supplier quotations and quote exceptions. It should not approve technical compliance, freeze selected offers, or generate final bid documents.
+
+## Reply Impact Role
+
+When `bid-package-orchestrator` routes a supplier/customer reply, this skill is the first required owner for revised supplier offers, revised quotations, price changes, quantity/UOM changes, lead-time changes, validity changes, Incoterm/payment changes, warranty changes, exclusions, optional costs, alternate models, or changed certificate/origin claims embedded in a supplier offer.
+
+Do not hand off the reply as ready for technical or certificate/origin review until the revised offer has a structured normalized handoff or a blocker is recorded. If the reply contains only a certificate/origin answer with no changed quote basis, this skill may be skipped by the orchestrator and `certificate-origin-review` may own the narrow review.
+
+For response-impact workflows, output a `Supplier Quote Normalization Result` section for the combined Response Impact Report. It must include changed supplier fields, affected items, mapping confidence, arithmetic proof, commercial exceptions, assumptions/exclusions, persistence status, blockers, and the recommended next specialist review.
+
 ## Workflow
 
 1. Collect supplier quote sources: PDFs, Excel files, Word documents, emails, attachments, revised offers, clarifications, and addenda.
@@ -62,11 +79,13 @@ Persist normalized quote results through `quoteflow-neon` before advancing the w
 - Normalized Supplier Quotation Table.
 - Customer item to supplier line mapping.
 - Supplier Quotation Exception Report.
+- Supplier Quote Normalization Result section for combined Response Impact Reports.
 - Commercial arithmetic check.
 - Missing/duplicate/wrong-quantity list.
 - Supplier assumption and exclusion register.
 - Pricing and compliance handoff dataset.
 - Persistence status, including `supplier_quote_normalizations` record references and any `supplier_item_status` rows updated.
+- Canonical QuoteFlow quotes deep link when ready, or a verified customer-required standalone artifact path when explicitly requested.
 
 ## Failure Rules
 
@@ -78,3 +97,4 @@ Persist normalized quote results through `quoteflow-neon` before advancing the w
 - If quote revisions conflict, preserve revision/date and ask which revision controls unless evidence is clear.
 - Do not expose supplier purchase costs or internal margins in customer-facing outputs.
 - Do not mark quote normalization complete if normalized quote rows could not be persisted and no database blocker was recorded.
+- Do not let a revised supplier offer proceed to technical compliance, certificate/origin, pricing, selected offer, forms, QA, or submission as a completed handoff when quote mapping, arithmetic, revision control, or persistence is blocked.
